@@ -3,7 +3,7 @@
 import os
 import gzip
 
-saving_path = '../../results/4_0_devide_into_chromosome'
+saving_path = '../../results/4_reference-chromosomes'
 if not os.path.exists(saving_path):
     os.makedirs(saving_path)
 
@@ -33,4 +33,3 @@ while line:
     if tf == True:
         file_write.write(line)
     line = file_genome.readline()
-    continue
