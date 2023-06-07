@@ -8,7 +8,7 @@ saving_path = '../../results/2_gene-regions'
 if not os.path.exists(saving_path):
     os.makedirs(saving_path)
 
-file_write = open('{}/gene.txt'.format(saving_path),'w')
+file_write = open('{}/genes.txt'.format(saving_path),'w')
 for p in glob.glob("../../results/1_genes/*.json"):
     gene = os.path.splitext(os.path.basename(p))[0]
     j = json.load(open(p, 'r'))
