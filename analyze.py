@@ -10,6 +10,7 @@ import os
 from utils import VariationType
 import json
 from misc import Segment
+import numpy as np
 
 def plot_calls(num_cds: int, num_gene: int):
     fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
@@ -185,68 +186,6 @@ def analyze_var_seg():
     print(seg_silent)
     print(seg_nonsense)
     return seg_missense, seg_silent, seg_nonsense
-
-def plot_gene_map():
-    chromosomes = { # GRCh38
-        "1":  248956422,
-        "2":  242193529,
-        "3":  198295559,
-        "4":  190214555,
-        "5":  181538259,
-        "6":  170805979,
-        "7":  159345973,
-        "8":  145138636,
-        "9":  138394717,
-        "10": 133797422,
-        "11": 135086622,
-        "12": 133275309,
-        "13": 114364328,
-        "14": 107043718,
-        "15": 101991189,
-        "16":  90338345,
-        "17":  83257441,
-        "18":  80373285,
-        "19":  58617616,
-        "20":  64444167,
-        "21":  46709983,
-        "22":  50818468,
-        "X":  156040895,
-        "Y":   57227415
-    } 
-    fig, ax = plt.subplots(1, 1, figsize=(12, 24), dpi=300)
-    for i, c in enumerate(chromosomes.keys()):
-        ax.bar(i, chromosomes[c], bottom=1, color='white', edgecolor='black', lw=0.5, width=0.8)
-    par1x = [10001, 2781479]
-    par2x = [155701383, 156030895]
-    ax.bar(22, par1x[1] - par1x[0], bottom=par1x[0], color='tab:gray')
-    ax.bar(22, par2x[1] - par2x[0], bottom=par2x[0], color='tab:gray')
-
-    num_genes = {}
-
-    import json
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, "ensembl.json")) as f:
-            gene_info = json.load(f)
-            display_name = gene_info['display_name']
-            chromosome = gene_info['seq_region_name']
-            gene_start = gene_info['start']
-            gene_end = gene_info['end']
-            strand = gene_info['strand']
-            x = list(chromosomes.keys()).index(chromosome)
-            ax.bar(x, gene_end - gene_start, bottom=gene_start, color='tab:orange' if strand == 1 else 'tab:blue')
-            ax.text(x, (gene_start + gene_end) / 2, display_name, ha='center', va='center', size=6)
-            num_genes[chromosome] = num_genes.get(chromosome, 0) + 1 
-    ax.set_xlim(-0.5, 22.5)
-    ax.set_ylim(1, max(chromosomes.values()))
-    ax.set_xticks(range(len(chromosomes)))
-    ax.set_xticklabels(["chr{}\n({})".format(c, num_genes.get(c, 0)) for c in chromosomes.keys()])
-    ax.set_xlabel("Chromosome\n(Number of GPCR genes)")
-
-    fig.tight_layout()
-    fig.savefig("gene_map.pdf")
 
 def plot_allele_freq(af: Dict):
     fig, ax = plt.subplots(1, 1, figsize=(6, 4), dpi=300)
@@ -654,12 +593,12 @@ def main():
     # var_seg = analyze_var_seg()
     # plot_var_seg(*var_seg)
     # plot_var_seg_percent(*var_seg)
-    # af = analyze_allele_freq()
-    # plot_allele_freq(af)
+    af = analyze_allele_freq()
+    plot_allele_freq(af)
     # nter = analyze_Nter()
     # plot_Nter(nter)
-    cter = analyze_Cter()
-    plot_cter(cter)
+    # cter = analyze_Cter()
+    # plot_cter(cter)
     # vars = analyze_high_freq_vars()
     # plot_high_freq_vars(vars)
     # pos = analyze_family_A_pos()
