@@ -1,3 +1,6 @@
-data
-results
 *.pdf
+__pycache__/
+data/
+Class */
+Other GPCRs/
+receptors.json
