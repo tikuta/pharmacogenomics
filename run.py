@@ -58,6 +58,7 @@ def main():
 
             gene = Gene(gene_region, seqs[0]['seq'], strand, coding_regions)
             gene.visualize(os.path.join(dpath, "gene.png"))
+            gene.save_cds(os.path.join(dpath, "cds.json"))
 
             vcf.filter_vcf(vcfs, coding_regions, os.path.join(dpath, "38KJPN-CDS.vcf"))
 

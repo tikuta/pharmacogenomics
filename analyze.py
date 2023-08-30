@@ -188,7 +188,7 @@ def analyze_var_seg():
     return seg_missense, seg_silent, seg_nonsense
 
 def plot_allele_freq(af: Dict):
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4), dpi=300)
+    fig, ax = plt.subplots(1, 1, figsize=(6, 2), dpi=300)
 
     ax.axhspan(-0.5, len(Segment) - 0.5, xmin=0.5, color='whitesmoke')
     ax.set_ylim(-0.5, len(Segment) - 0.5)
@@ -539,31 +539,41 @@ def analyze_family_A_pos() -> List[Dict]:
 
     return count, g_num_count
 
-def plot_amino_acid(amino_acids: Dict):
-    fig, ax = plt.subplots(1, 1, figsize=(6, 2), dpi=300)
-    keys = list(amino_acids.keys())[::-1]
-    for i, pos in enumerate(keys):
-        aas = list(amino_acids[pos].keys())
-        aas.sort(key=lambda aa: (aa != 'Unassigned', amino_acids[pos][aa]))
-        left = 0
-        for aa in aas[::-1]:
-            delta = amino_acids[pos][aa]
-            print(pos, aa, delta)
-            ax.barh(i, delta, left=left, color=AA2COLOR.get(aa, 'tab:gray'), linewidth=0.5, edgecolor='k')
-            ax.text(left + delta / 2, i, aa, ha='center', va='center')
-            left += delta
-    ax.set_xticks([0, 50, 100, 150, 200, 250, left])
-    ax.set_xticklabels([0, 50, 100, 150, 200, 250, left])
-    ax.set_xlim(0, left)
-    ax.set_xlabel("Number of GPCRs")
-    ax.set_yticks(range(len(keys)))
-    ax.set_yticklabels(keys)
-    ax.set_ylabel("Generic number")
-    fig.tight_layout()
-    fig.savefig("amino_acid.pdf")
+def plot_arginine_3x50(aa_stats: Dict, codon_stats: Dict):
+    fig, axes = plt.subplots(2, 1, figsize=(8, 2), dpi=300, sharex=True)
 
-def analyze_amino_acid() -> Dict:
-    amino_acids = {'3.50': {}, '8.51': {}, '34.57': {}}
+    ax = axes[0]
+    aas = list(aa_stats.keys())
+    aas.sort(key=lambda aa: (aa != 'Unassigned', aa_stats[aa]))
+    left = 0
+    for aa in aas[::-1]:
+        delta = aa_stats[aa]
+        print(aa, delta)
+        ax.barh(0, delta, left=left, color=AA2COLOR.get(aa, 'tab:gray'), linewidth=0.5, edgecolor='k')
+        if aa == "R":
+            ax.text(left + delta / 2, 0, "{}\n({})".format(aa, delta), ha='center', va='center')
+        left += delta
+    ax.set_axis_off()
+
+    ax = axes[1]
+    codons = list(codon_stats.keys())
+    codons.sort(key=lambda codon: codon_stats[codon])
+    left = 0
+    for codon in codons[::-1]:
+        delta = codon_stats[codon]
+        print(codon, delta)
+        ax.barh(0, delta, left=left, linewidth=0.5, edgecolor='k')
+        y, va = 0.45 if delta < 20 else 0, 'bottom' if delta < 20 else 'center'
+        ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center')
+        left += delta
+    ax.set_axis_off()
+
+    fig.tight_layout()
+    fig.savefig("arginine_3x50.pdf")
+
+def analyze_arginine_3x50() -> List[Dict]:
+    aa_stats = {}
+    codon_stats = {}
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
         entry_name = receptor['entry_name']
         receptor_class = receptor['receptor_class']
@@ -574,15 +584,19 @@ def analyze_amino_acid() -> Dict:
         with open(os.path.join(dpath, 'match.json')) as f:
             residues = json.load(f)['residues']
             g_nums = {r['generic_number']: r['ensembl_amino_acid'] for r in residues if r['generic_number'] is not None}
-            for g_num in amino_acids.keys():
-                d = amino_acids[g_num]
-                if g_num in g_nums.keys():
-                    aa = g_nums[g_num]
-                else:
-                    aa = "Unassigned"
-                d[aa] = d.get(aa, 0) + 1
-                amino_acids[g_num] = d
-    return amino_acids
+            res_nums = {r['generic_number']: r['ensembl_sequence_number'] for r in residues if r['generic_number'] is not None}
+
+            roi = "3.50"
+            aa = g_nums.get(roi, "Unassigned")
+            aa_stats[aa] = aa_stats.get(aa, 0) + 1
+
+            if aa == 'R':
+                with open(os.path.join(dpath, 'cds.json')) as f:
+                    cds = json.load(f)
+                res_num = res_nums[roi]
+                codon = cds['nucleotides'][res_num * 3 - 3: res_num * 3]
+                codon_stats[codon] = codon_stats.get(codon, 0) + 1
+    return aa_stats, codon_stats
 
 def main():
     # plot_gene_map()
@@ -593,8 +607,8 @@ def main():
     # var_seg = analyze_var_seg()
     # plot_var_seg(*var_seg)
     # plot_var_seg_percent(*var_seg)
-    af = analyze_allele_freq()
-    plot_allele_freq(af)
+    # af = analyze_allele_freq()
+    # plot_allele_freq(af)
     # nter = analyze_Nter()
     # plot_Nter(nter)
     # cter = analyze_Cter()
@@ -603,8 +617,8 @@ def main():
     # plot_high_freq_vars(vars)
     # pos = analyze_family_A_pos()
     # plot_family_A_pos(*pos)
-    # aa = analyze_amino_acid()
-    # plot_amino_acid(aa)
+    # aa_stats, codon_stats = analyze_arginine_3x50()
+    # plot_arginine_3x50(aa_stats, codon_stats)
     pass
 
 if __name__ == '__main__':

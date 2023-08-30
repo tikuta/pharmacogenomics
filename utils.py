@@ -6,6 +6,7 @@ matplotlib.use('Agg')
 import os
 import enum
 from misc import STANDARD_CODES
+import json
 
 class VariationType(enum.Enum):
     MISSENSE = 1
@@ -201,6 +202,16 @@ class Gene:
         else:
             return complementary_sequence(plus[offset: offset + length])[::-1]
     
+    def save_cds(self, fpath, force=False, snv:SNV=None):
+        if os.path.exists(fpath) and force is False:
+            return
+        
+        nucleotides = ''
+        for region in self.coding_regions[::self.strand]:
+            nucleotides += self.at(region, self.strand, snv=snv)
+        with open(fpath, 'w') as f:
+            json.dump({"nucleotides": nucleotides}, f)
+
     def translate(self, snv:SNV=None) -> str:
         t = ''
 
