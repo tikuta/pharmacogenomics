@@ -3,9 +3,10 @@
 import requests
 import json
 import os
-from typing import List
+from typing import List, Dict
 from Bio.Align import PairwiseAligner
 from misc import BLOCKLIST
+import pandas as pd
 
 def get_filtered_receptor_list(fpath, force=False):
     receptors = get_receptor_list(fpath, force=force)
@@ -167,10 +168,49 @@ def match(seq, generic_numbers, receptor_class, fpath, alignment_for_human=None,
 
     return ret
 
+def extract_coupling(fpath, force=False) -> pd.DataFrame:
+    if os.path.exists(fpath) and force is False:
+        return pd.read_csv(fpath)
+    
+    html = "couplings.html"
+    if not os.path.exists(html) or force is True:
+        uri = "https://gproteindb.org/signprot/couplings#"
+        r = requests.get(uri)
+        if not r.ok:
+            raise
+        with open(html, 'w', encoding='utf-8') as f:
+            f.write(r.text)
+    dfs = pd.read_html(html, displayed_only=False, attrs={'id': 'familiestabletab'})
+    assert(len(dfs) == 1)
+    df = dfs[0].drop(0).rename(columns=lambda x: x.replace('  ×', ''))
+    df.to_csv("couplings.csv")
+    extracted = df[['Source', 'Receptor', 'Guide to Pharmacology']][df[('Source', 'Group')] == 'Inoue'].droplevel(0, axis=1)
+    extracted.to_csv(fpath)
+
+    return pd.read_csv(fpath)
+
+def primary_coupled_receptors() -> Dict:
+    df = extract_coupling("couplings_extracted.csv")
+    df_A = df[df['Cl'] == 'A']
+    df_primary_Gs    = df_A[(df_A['Gs'] == "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] != "1'")]
+    df_primary_Gio   = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] == "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] != "1'")]
+    df_primary_Gq11  = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] == "1'") & (df_A['G12/13'] != "1'")]
+    df_primary_G1213 = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] == "1'")]
+    df_promiscuous   = df_A[~df_A.index.isin(df_primary_Gs.index) &
+                      ~df_A.index.isin(df_primary_Gio.index) &
+                      ~df_A.index.isin(df_primary_Gq11.index) &
+                      ~df_A.index.isin(df_primary_G1213.index)]
+    print(df_A.shape, df_primary_Gs.shape, df_primary_Gio.shape, df_primary_Gq11.shape, df_primary_G1213.shape, df_promiscuous.shape)
+
+    d = {
+        "Gs":          list(df_primary_Gs['Uniprot']),
+        "Gi/o":        list(df_primary_Gio['Uniprot']),
+        "Gq/11":       list(df_primary_Gq11['Uniprot']),
+        "G12/13":      list(df_primary_G1213['Uniprot']),
+        "promiscuous": list(df_promiscuous['Uniprot']),
+        }
+    return d
+    
+
 if __name__ == '__main__':
-    receptor_classes = {}
-    for r in get_filtered_receptor_list("receptors.json"):
-        receptor_class = r['receptor_class']
-        receptor_classes[receptor_class] = receptor_classes.get(receptor_class, 0) + 1
-        receptor_classes['Total'] = receptor_classes.get('Total', 0) + 1
-    print(receptor_classes)
+    pass

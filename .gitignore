@@ -4,3 +4,6 @@ data/
 Class */
 Other GPCRs/
 receptors.json
+couplings.csv
+couplings.html
+couplings_extracted.csv
