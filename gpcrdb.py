@@ -200,7 +200,6 @@ def primary_coupled_receptors() -> Dict:
                       ~df_A.index.isin(df_primary_Gio.index) &
                       ~df_A.index.isin(df_primary_Gq11.index) &
                       ~df_A.index.isin(df_primary_G1213.index)]
-    print(df_A.shape, df_primary_Gs.shape, df_primary_Gio.shape, df_primary_Gq11.shape, df_primary_G1213.shape, df_promiscuous.shape)
 
     d = {
         "Gs":          list(df_primary_Gs['Uniprot']),

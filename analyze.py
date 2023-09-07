@@ -11,6 +11,7 @@ from utils import VariationType
 import json
 from misc import Segment
 import numpy as np
+import sys
 
 def plot_calls(num_cds: int, num_gene: int):
     fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
@@ -598,25 +599,43 @@ def analyze_arginine_3x50() -> List[Dict]:
                 codon_stats[codon] = codon_stats.get(codon, 0) + 1
     return aa_stats, codon_stats
 
-def plot_enriched_positions(enriched: Dict):
-    fig, axes = plt.subplots(1, 2, figsize=(6, 2), dpi=300, sharex=True, sharey=True)
-
-    for g_prot in ['Gs', 'Gi/o', 'promiscuous']: #enriched.keys():
-        for ax, enrich_type in zip(axes, sorted(enriched[g_prot].keys())):
-            ax.hist(enriched[g_prot][enrich_type], bins=100, range=(0, 1), histtype='step', label=g_prot)
-            ax.set_title("Enriched in " + enrich_type)
-            ax.set_xlabel("Allele Freq.")
-            ax.set_xscale('log')
-    axes[-1].legend(bbox_to_anchor=(1, 0.5), loc='center left')
+def plot_G_protein_contact_positions(vars: Dict):
+    fig, ax = plt.subplots(1, 1, figsize=(4, 3), dpi=300, sharex=True, sharey=True)
+    af_values = np.array([[vars[receptor][gnum][0] for gnum in vars[receptor].keys()] for receptor in vars.keys()]).flatten()
+    bins = np.insert(np.linspace(1 / 50, 1, 50), 0, [0, sys.float_info.epsilon])
+    ax.hist(af_values, bins=bins, histtype='step', lw=1, color='tab:gray')
+    ax.hist(af_values, bins=bins, color='tab:gray')
+    for receptor in vars.keys():
+        for gnum in vars[receptor].keys():
+            af = vars[receptor][gnum][0]
+            anno = vars[receptor][gnum][1]
+            if af > 0.05:
+                x, y = af, 1
+                ha = 'left'
+                if af < 0.2:
+                    dx, dy = 0.05, 10
+                    ax.arrow(af, 1, dx=dx, dy=dy, lw=0.5)
+                    x += dx
+                    y += dy
+                    ha = 'center'
+                elif 0.2 < af < 0.8:
+                    ha = 'center'
+                else:
+                    ha = 'right'
+                ax.text(x, y, anno, va='bottom', ha=ha)
+    ax.set_xlabel("Allele Freq.")
+    ax.set_yscale('log')
+    ax.set_ylabel("Number of Variants")
     fig.tight_layout()
-    fig.savefig("enriched_poistions.pdf")
+    fig.savefig("G_protein_contact_positions.pdf")
 
-def analyze_enriched_positions() -> Dict:
-    # See below for detail
-    # https://www.nature.com/articles/s41467-023-40045-y
-    gs_enriched = ["5.61", "5.64", "5.65", "5.69", "5.76", "6.39", "6.40"]
-    gio_enriched = ["2.37", "2.39", "3.49", "34.50", "34.51", "34.52", "34.53", "34.54", "34.55", 
-                    "6.25", "6.29", "6.33", "6.34", "6.37", "7.53", "8.50"]
+def analyze_G_protein_contact_positions() -> Dict:
+    # See Fig. 3c for detail
+    # https://doi.org/10.1038/s41467-022-34055-5
+    common_contacts = ("3.50", "3.53", "3.54", "34.50", "34.51", "34.55", "5.65", "5.68", "6.32", "6.33", "6.36", "6.37", "7.56", "8.47")
+    # gs_top10_contacts = ( "3.54", "34.50", "34.51", "34.53", "34.54",  "5.68",  "7.55",  "8.48")
+    # gi_top10_contacts = ("12.49",  "3.53",  "5.61",  "5.68",  "5.71",  "6.32",  "7.56",  "8.47",  "8.49")
+    # gq_top10_contacts = ( "2.39",  "3.53", "34.53", "34.55", "34.57",  "4.38",  "4.39",  "6.33",  "8.48")
 
     vars = {}
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
@@ -626,32 +645,22 @@ def analyze_enriched_positions() -> Dict:
             continue
 
         dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, 'uniprot.json')) as f:
-            uniprot_id = json.load(f)['uniProtkbId'].replace('_HUMAN', '')
-        
         with open(os.path.join(dpath, '38KJPN-CDS.csv')) as f:
-            gnum_af = {}
+            gnum_af = {gnum: [0, ""] for gnum in common_contacts}
             for l in f.readlines():
                 cols = l.strip().split('\t')
                 if l.startswith('#'):
-                    gnum_idx = cols.index('Generic_Num')
-                    af_idx = cols.index('AF')
+                    header = cols
                     continue
-                gnum_af[cols[gnum_idx]] = float(cols[af_idx])
-            vars[uniprot_id] = gnum_af
-
-    couplings = gpcrdb.primary_coupled_receptors()
-    ret = {}
-    for g_prot in couplings.keys():
-        gs_enriched_af_values = []
-        gio_enriched_af_values = []
-        for uniprot_id in couplings[g_prot]:
-            gs_enriched_af_values += [vars[uniprot_id].get(g_num, 0) for g_num in gs_enriched]
-            gio_enriched_af_values += [vars[uniprot_id].get(g_num, 0) for g_num in gio_enriched]
-        ret[g_prot] = {"Gs": gs_enriched_af_values, "Gi/o": gio_enriched_af_values}
-
-    return ret
-    
+                af = float(cols[header.index('AF')])
+                gnum = cols[header.index('Generic_Num')]
+                vtype = VariationType.name_of(cols[header.index('#Var_Type')])
+                if vtype == VariationType.MISSENSE and gnum in common_contacts:
+                    ref_aa, res_num, alt_aa = cols[header.index('Ref_AA')], cols[header.index('Res_Num')], cols[header.index('Alt_AA')]
+                    annotation = "{}\n{}{}$^{{{}}}${}\nAF = {:.2f}".format(entry_name.replace("_human", "").upper(), ref_aa, res_num, gnum, alt_aa, af)
+                    gnum_af[gnum] = [af, annotation]
+            vars[entry_name] = gnum_af
+    return vars
 
 def main():
     # plot_gene_map()
@@ -674,8 +683,8 @@ def main():
     # plot_family_A_pos(*pos)
     # aa_stats, codon_stats = analyze_arginine_3x50()
     # plot_arginine_3x50(aa_stats, codon_stats)
-    enriched = analyze_enriched_positions()
-    plot_enriched_positions(enriched)
+    vars = analyze_G_protein_contact_positions()
+    plot_G_protein_contact_positions(vars)
     pass
 
 if __name__ == '__main__':
