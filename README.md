@@ -10,6 +10,7 @@ You may install via APT system in Ubuntu.
 - Requests
 - Biopython
 - Matplotlib
+- Pandas
 
 ## How to run
 1. Place VCF files and TBI files in `data` directory.
