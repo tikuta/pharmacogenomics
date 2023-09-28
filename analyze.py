@@ -470,31 +470,22 @@ def plot_family_A_pos(count: Dict, g_num_count: Dict):
     g_nums = list(g_num_count.keys())
     g_nums.sort()
 
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4), dpi=300)
-    ax2 = ax.twinx()
-    min_receptor = 100
-    ax.axhspan(0, min_receptor, color='whitesmoke')
+    fig, ax = plt.subplots(1, 1, figsize=(3, 6), dpi=300)
+    ax.invert_yaxis()
     for i, g_num in enumerate(g_nums):
         color = Segment.generic_number_of(g_num).color
-        ax.bar(i, g_num_count[g_num], color='lightgray')
-        ax.bar(i, count.get(g_num, 0), color=color)
-        if g_num_count[g_num] >= min_receptor: # at least 10% of receptors has the generic number
-            percentage = count.get(g_num, 0) / g_num_count[g_num] * 100
-            ax2.scatter(i, percentage, color=color, marker='s', s=0.2)
-            if percentage > 20:
-                ax2.text(i, percentage, "{}\n{} GPCRs ({:.1f}%)".format(g_num, count[g_num], percentage), va='bottom', ha='center', size=8)
+        ax.barh(i, g_num_count[g_num], color='lightgray', height=1, zorder=-200)
+        ax.barh(i, count.get(g_num, 0), color=color, height=1, zorder=-100)
 
-    ax.set_xticks([g_nums.index(g_num) for g_num in g_nums if g_num.endswith('.50')])
-    ax.set_xticklabels([g_num for g_num in g_nums if g_num.endswith('.50')], rotation=90, size=8)
-    ax.set_xlabel("Generic number (BW number)")
-    ax.set_ylim(0, max(g_num_count.values()))
-    ax.set_ylabel("Number of family A GPCRs")
-    ax.set_yticks([0, 50, 100, 150, 200, 250, max(g_num_count.values())])
-    ax.set_yticklabels([0, 50, 100, 150, 200, 250, max(g_num_count.values())])
-    ax.set_yticks([min_receptor], minor=True)
-    ax.set_yticklabels([min_receptor], minor=True)
-    ax2.set_ylabel("GPCRs that can carry missense variations [%]")
-    ax2.set_ylim(0, 35)
+    ax.set_yticks([g_nums.index(g_num) for g_num in g_nums if g_num.endswith('.50')])
+    ax.set_yticklabels([g_num for g_num in g_nums if g_num.endswith('.50')], size=8)
+    ax.set_ylabel("Generic number (BW number)")
+    ax.set_xlim(0, max(g_num_count.values()))
+    ax.set_xlabel("Number of family A GPCRs")
+    ax.set_ylim(len(g_nums), -1)
+    ax.set_xticks([0, 50, 100, 150, 200, 250, max(g_num_count.values())])
+    ax.set_xticklabels([0, 50, 100, 150, 200, 250, max(g_num_count.values())])
+    # ax.legend(ncol=2, bbox_to_anchor=(0.5, 1.1), loc='lower center')
     fig.tight_layout()
     fig.savefig("family_A_pos.pdf")
 
@@ -599,7 +590,7 @@ def analyze_arginine_3x50() -> List[Dict]:
                 codon_stats[codon] = codon_stats.get(codon, 0) + 1
     return aa_stats, codon_stats
 
-def plot_G_protein_contact_positions(vars: Dict):
+def plot_G_protein_common_contact_positions(vars: Dict):
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), dpi=300, sharex=True, sharey=True)
     af_values = np.array([[vars[receptor][gnum][0] for gnum in vars[receptor].keys()] for receptor in vars.keys()]).flatten()
     bins = np.insert(np.linspace(1 / 50, 1, 50), 0, [0, sys.float_info.epsilon])
@@ -627,9 +618,9 @@ def plot_G_protein_contact_positions(vars: Dict):
     ax.set_yscale('log')
     ax.set_ylabel("Number of Variants")
     fig.tight_layout()
-    fig.savefig("G_protein_contact_positions.pdf")
+    fig.savefig("G_protein_common_contact_positions.pdf")
 
-def analyze_G_protein_contact_positions() -> Dict:
+def analyze_G_protein_common_contact_positions() -> Dict:
     # See Fig. 3c for detail
     # https://doi.org/10.1038/s41467-022-34055-5
     common_contacts = {"3.50", "3.53", "3.54", "34.50", "34.51", "34.55", "5.65", "5.68", "6.32", "6.33", "6.36", "6.37", "7.56", "8.47"}
@@ -759,10 +750,10 @@ def main():
     # plot_family_A_pos(*pos)
     # aa_stats, codon_stats = analyze_arginine_3x50()
     # plot_arginine_3x50(aa_stats, codon_stats)
-    # vars = analyze_G_protein_contact_positions()
-    # plot_G_protein_contact_positions(vars)
-    af, anno = analyze_G_protein_contact_positions()
-    plot_G_protein_contact_positions(af, anno)
+    vars = analyze_G_protein_common_contact_positions()
+    plot_G_protein_common_contact_positions(vars)
+    # af, anno = analyze_G_protein_contact_positions()
+    # plot_G_protein_contact_positions(af, anno)
     pass
 
 if __name__ == '__main__':
