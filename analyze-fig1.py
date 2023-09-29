@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import os
-from utils import VariationType
+from utils import VariationType, Segment
 
 def analyze_calls():
     num_cds, num_gene = 0, 0
@@ -121,10 +121,6 @@ def analyze_var_seg():
                 elif var_type == VariationType.NONSENSE.name:
                     seg_nonsense[seg] = seg_nonsense.get(seg, 0) + 1
 
-    xlabels = ["N-term", "TM1", "ICL1", "TM2", "ECL1", "TM3", "ICL2", "TM4", "ECL2", "TM5", "ICL3", "TM6", "ECL3", "TM7", "H8", "ICL4", "C-term", "None"]
-    cmap = plt.get_cmap('rainbow', len(xlabels) - 1)
-    colors = [cmap(i) for i in range(len(xlabels) - 1)] + ['tab:gray']
-
     total_missense = sum([v for v in seg_missense.values()])
     total_silent = sum([v for v in seg_silent.values()])
     total_nonsense = sum([v for v in seg_nonsense.values()])
@@ -132,25 +128,25 @@ def analyze_var_seg():
     fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
 
     left = 0
-    for x in range(len(xlabels)):
-        width = seg_missense.get(xlabels[x], 0) / total_missense * 100
-        ax.barh(2, width, height=0.7, left=left, color=colors[x], edgecolor='k', lw=0.2)
+    for seg in Segment:
+        width = seg_missense.get(seg.value, 0) / total_missense * 100
+        ax.barh(2, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
         
-        label = xlabels[x]
+        label = seg.value
         if label.startswith('TM') or label.endswith('-term'):
             ax.text(left + width / 2, 2.4, label, ha='center', va='bottom', size=6)
         left += width
 
     left = 0
-    for x in range(len(xlabels)):
-        width = seg_silent.get(xlabels[x], 0) / total_silent * 100
-        ax.barh(1, width, height=0.7, left=left, color=colors[x], edgecolor='k', lw=0.2)
+    for seg in Segment:
+        width = seg_silent.get(seg.value, 0) / total_silent * 100
+        ax.barh(1, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
         left += width
 
     left = 0
-    for x in range(len(xlabels)):
-        width = seg_nonsense.get(xlabels[x], 0) / total_nonsense * 100
-        ax.barh(0, width, height=0.7, left=left, color=colors[x], edgecolor='k', lw=0.2)
+    for seg in Segment:
+        width = seg_nonsense.get(seg.value, 0) / total_nonsense * 100
+        ax.barh(0, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
         left += width
 
     ax.set_ylim(-0.5, 2.7)
