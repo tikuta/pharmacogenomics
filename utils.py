@@ -8,6 +8,66 @@ import enum
 from misc import STANDARD_CODES
 import json
 
+class Segment(enum.Enum):
+    Nterm = "N-term"
+    TM1 = "TM1"
+    ICL1 = "ICL1"
+    TM2 = "TM2"
+    ECL1 = "ECL1"
+    TM3 = "TM3"
+    ICL2 = "ICL2"
+    TM4 = "TM4"
+    ECL2 = "ECL2"
+    TM5 = "TM5"
+    ICL3 = "ICL3"
+    TM6 = "TM6"
+    ECL3 = "ECL3"
+    TM7 = "TM7"
+    ICL4 = "ICL4"
+    H8 = "H8"
+    Cterm = "C-term"
+    NONE = "None"
+
+    def __str__(self) -> str:
+        return self.value
+    
+    @property
+    def color(self):
+        cmap = plt.get_cmap('rainbow', len(Segment) - 1) 
+        if self == Segment.NONE:
+            return 'tab:gray'
+        for i, seg in enumerate(Segment):
+            if seg == self:
+                return cmap(i)
+    
+    @classmethod
+    def value_of(cls, target):
+        for e in cls:
+            if e.value == target:
+                return e
+        raise ValueError
+
+    @classmethod
+    def generic_number_of(cls, g_num):
+        seg = int(g_num.split('.')[0])
+        if 1 <= seg <= 7:
+            return cls.value_of("TM" + str(seg))
+        elif seg == 8:
+            return cls.H8
+        elif seg == 12:
+            return cls.ICL1
+        elif seg == 23:
+            return cls.ECL1
+        elif seg == 34:
+            return cls.ICL2
+        elif seg == 45:
+            return cls.ECL2
+        elif seg == 56:
+            return cls.ICL3
+        elif seg == 67:
+            return cls.ECL3
+        raise ValueError
+
 class VariationType(enum.Enum):
     MISSENSE = 1
     SILENT = 0
@@ -64,7 +124,6 @@ def normalized_chromosome(c) -> str:
     
     return c
 
-
 def complementary_sequence(seq: str) -> str:
     pairs = {"A": "T", "C": "G", "G": "C", "T": "A"}
     return ''.join([pairs[s] for s in seq])
@@ -81,10 +140,11 @@ def translate(seq: str, **unusual_codons) -> str:
     return ret
 
 class SNV:
-    def __init__(self, chromosome: str, position: int, ref: str, alt: str, AC, AN, AF, AC_XX, AN_XX, AF_XX, AC_XY, AN_XY, AF_XY) -> None:
+    def __init__(self, chromosome: str, position: int, rsid: str, ref: str, alt: str, AC, AN, AF, AC_XX, AN_XX, AF_XX, AC_XY, AN_XY, AF_XY) -> None:
         assert(len(ref) == len(alt) == 1)
         self.chromosome = normalized_chromosome(chromosome)
         self.position = position
+        self.rsid = rsid
         self.ref = ref
         self.alt = alt
 
@@ -113,7 +173,8 @@ class Variation:
         self.quality = float(cols[5])
         self.passed = True if cols[6] == 'PASS' else False
         
-        keyvals = {keyval.split('=')[0]: keyval.split('=')[1] for keyval in cols[7].split(';')}
+        # Some keys may not have values (e.g., TOMMO_POSSIBLE_PLATFORM_BIAS_SITE)
+        keyvals = {keyval.split('=')[0]: keyval.split('=')[-1] for keyval in cols[7].split(';')}
 
         self.AC = [int(v) for v in keyvals['AC'].split(',')]
         self.AN = int(keyvals['AN'])
@@ -136,7 +197,7 @@ class Variation:
                 assert(self.ref in 'ACGT')
                 if len(alt) == 1: # 1:1 SNV
                     assert(alt in 'ACGT') # Illegal VCF can contain '-' to indicate deletions
-                    ret.append(SNV(self.chromosome, self.position, self.ref, alt, 
+                    ret.append(SNV(self.chromosome, self.position, self.rsid, self.ref, alt, 
                                    self.AC[i], self.AN, self.AF[i],
                                    self.AC_XX[i], self.AN_XX, self.AF_XX[i],
                                    self.AC_XY[i], self.AN_XY, self.AF_XY[i]))
@@ -153,7 +214,7 @@ class Variation:
                             count += 1
                             idx = j
                     if count == 1: # 1:1 SNV
-                        ret.append(SNV(self.chromosome, self.position + idx, self.ref[idx], alt[idx],
+                        ret.append(SNV(self.chromosome, self.position + idx, self.rsid, self.ref[idx], alt[idx],
                                         self.AC[i], self.AN, self.AF[i],
                                         self.AC_XX[i], self.AN_XX, self.AF_XX[i],
                                         self.AC_XY[i], self.AN_XY, self.AF_XY[i]))

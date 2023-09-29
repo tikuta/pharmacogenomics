@@ -1,67 +1,10 @@
-import enum
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
+VCF_JPN_GENE_FILENAME = "JPN-GENE.vcf"
+VCF_JPN_CDS_FILENAME = "JPN-CDS.vcf"
+CSV_JPN_CDS_FILENAME = "JPN-CDS.csv"
 
-class Segment(enum.Enum):
-    Nterm = "N-term"
-    TM1 = "TM1"
-    ICL1 = "ICL1"
-    TM2 = "TM2"
-    ECL1 = "ECL1"
-    TM3 = "TM3"
-    ICL2 = "ICL2"
-    TM4 = "TM4"
-    ECL2 = "ECL2"
-    TM5 = "TM5"
-    ICL3 = "ICL3"
-    TM6 = "TM6"
-    ECL3 = "ECL3"
-    TM7 = "TM7"
-    ICL4 = "ICL4"
-    H8 = "H8"
-    Cterm = "C-term"
-    NONE = "None"
-
-    def __str__(self) -> str:
-        return self.value
-    
-    @property
-    def color(self):
-        cmap = plt.get_cmap('rainbow', len(Segment) - 1) 
-        if self == Segment.NONE:
-            return 'tab:gray'
-        for i, seg in enumerate(Segment):
-            if seg == self:
-                return cmap(i)
-    
-    @classmethod
-    def value_of(cls, target):
-        for e in cls:
-            if e.value == target:
-                return e
-        raise ValueError
-
-    @classmethod
-    def generic_number_of(cls, g_num):
-        seg = int(g_num.split('.')[0])
-        if 1 <= seg <= 7:
-            return cls.value_of("TM" + str(seg))
-        elif seg == 8:
-            return cls.H8
-        elif seg == 12:
-            return cls.ICL1
-        elif seg == 23:
-            return cls.ECL1
-        elif seg == 34:
-            return cls.ICL2
-        elif seg == 45:
-            return cls.ECL2
-        elif seg == 56:
-            return cls.ICL3
-        elif seg == 67:
-            return cls.ECL3
-        raise ValueError
+VCF_GLOBAL_GENE_FILENAME = "GLOBAL-GENE.vcf"
+VCF_GLOBAL_CDS_FILENAME = "GLOBAL-CDS.vcf"
+CSV_GLOBAL_CDS_FILENAME = "GLOBAL-CDS.csv"
 
 AA2COLOR = {
     "A": "#ffff00",

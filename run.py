@@ -6,12 +6,13 @@ import uniprot
 import ensembl
 import vcf
 from utils import Region, Gene, Variation
+from misc import *
 
 def main():
     vcfs = [
-        "./data/tommo-38kjpn-20220630-GRCh38-af-autosome.vcf.gz", 
-        "./data/tommo-38kjpn-20220929-GRCh38-af-chrX_PAR2.vcf.gz",
-        "./data/tommo-38kjpn-20220929-GRCh38-af-chrX_PAR3.vcf.gz"
+        "./data/tommo-54kjpn-20230626-GRCh38-af-autosome.vcf.gz", 
+        "./data/tommo-54kjpn-20230626-GRCh38-af-chrX_PAR2.vcf.gz",
+        # No GPCR gene regions in PAR3 vcf
     ]
 
     for d in gpcrdb.get_filtered_receptor_list("receptors.json"):
@@ -36,7 +37,7 @@ def main():
         strand = gene_info['strand']
         assert(gene_info['assembly_name'] == 'GRCh38')
         gene_region = Region(chromosome, gene_start, gene_end)
-        vcf.filter_vcf(vcfs, [gene_region], os.path.join(dpath, "38KJPN-gene.vcf"))
+        vcf.filter_vcf(vcfs, [gene_region], os.path.join(dpath, VCF_JPN_GENE_FILENAME))
 
         for transcript in gene_info['Transcript']:
             if transcript['is_canonical'] != 1:
@@ -60,14 +61,15 @@ def main():
             gene.visualize(os.path.join(dpath, "gene.png"))
             gene.save_cds(os.path.join(dpath, "cds.json"))
 
-            vcf.filter_vcf(vcfs, coding_regions, os.path.join(dpath, "38KJPN-CDS.vcf"))
+            vcf.filter_vcf(vcfs, coding_regions, os.path.join(dpath, VCF_JPN_CDS_FILENAME))
 
             ref_seq = gene.translate()
             assert(ref_seq[0] == 'M')
             matched = gpcrdb.match(ref_seq, generic_numbers, receptor_class, os.path.join(dpath, "match.json"), force=True, alignment_for_human=os.path.join(dpath, "match.txt"))
 
-            w = open(os.path.join(dpath, "38KJPN-CDS.csv"), 'w')
-            header = ["Var_Type", "Chr", "Pos", "Res_Num"]
+            # Annotate variations on CDS
+            w = open(os.path.join(dpath, CSV_JPN_CDS_FILENAME), 'w')
+            header = ["Var_Type", "Chr", "Pos", "rsID", "Res_Num"]
             header += ["Ref_Base", "Ref_Codon", "Ref_AA"]
             header += ["Alt_Base", "Alt_Codon", "Alt_AA"]
             header += ["Seg", "Generic_Num"]
@@ -76,7 +78,7 @@ def main():
             header += ["AC_XY", "AN_XY", "AF_XY"]
             w.write('#' + '\t'.join(header) + '\n')
 
-            with open(os.path.join(dpath, "38KJPN-CDS.vcf")) as f:
+            with open(os.path.join(dpath, VCF_JPN_CDS_FILENAME)) as f:
                 for l in f.readlines():
                     if len(l) == 0:
                         continue
@@ -89,11 +91,11 @@ def main():
                         try:
                             res = matched['residues'][anno.res_num - 1]
                         except:
-                            print(anno.res_num, snv.position, snv.ref, snv.alt)
+                            print(anno.res_num, snv.position, snv.rsid, snv.ref, snv.alt)
                         assert(res['ensembl_sequence_number'] == anno.res_num)
                         seg = res['segment']
                         generic_num = res['generic_number']
-                        cols = [anno.var_type, snv.chromosome, snv.position, anno.res_num]
+                        cols = [anno.var_type, snv.chromosome, snv.position, snv.rsid, anno.res_num]
                         cols += [snv.ref, anno.ref_codon, anno.ref_aa]
                         cols += [snv.alt, anno.alt_codon, anno.alt_aa]
                         cols += [seg, generic_num]
