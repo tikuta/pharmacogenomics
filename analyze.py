@@ -12,46 +12,6 @@ import json
 import numpy as np
 import sys
 
-
-
-
-def plot_allele_freq(af: Dict):
-    fig, ax = plt.subplots(1, 1, figsize=(6, 2), dpi=300)
-
-    ax.axhspan(-0.5, len(Segment) - 0.5, xmin=0.5, color='whitesmoke')
-    ax.set_ylim(-0.5, len(Segment) - 0.5)
-    for i, seg in enumerate(Segment):
-        ax.scatter(af[seg.value], [i] * len(af[seg.value]), color=seg.color)
-
-    ax.set_yticks(range(len(Segment)))
-    ax.set_yticklabels([seg.value for seg in Segment])
-    ax.invert_yaxis()
-    ax.set_xlabel("Allele Freq.")
-    fig.tight_layout()
-    fig.savefig("allele_freq.pdf")
-
-def analyze_allele_freq() -> Dict:
-    af = {}
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, '38KJPN-CDS.csv')) as f:
-            for l in f.readlines():
-                if l.startswith('#'):
-                    continue
-                cols = l.split('\t')
-                var_type = cols[0]
-                seg = cols[10]
-                freq = float(cols[14])
-                if seg == 'None':
-                    print(dpath, l)
-                if var_type == VariationType.MISSENSE.name:
-                    freqs = af.get(seg, [])
-                    freqs.append(freq)
-                    af[seg] = freqs
-    return af
-
 def plot_cter(cter: Dict):
     fig, ax = plt.subplots(1, 1, figsize=(6, 2), dpi=300)
 
@@ -227,71 +187,7 @@ def analyze_Nter() -> Dict:
                 glyco[key] = a
     return glyco
 
-def plot_high_freq_vars(vars: List):
-    fig, ax = plt.subplots(1, 1, figsize=(4, 12), dpi=300)
-    ax.set_facecolor('whitesmoke')
 
-    vars.sort(key=lambda v: (v[1], v[3]))
-
-    for i, var in enumerate(vars):
-        ax.barh(i, var[1], color=var[2])
-    
-    A_ticks, A_ticklabels = [], []
-    non_A_ticks, non_A_ticklabels = [], []
-    for i, v in enumerate(vars):
-        if v[3]:
-            A_ticks.append(i)
-            A_ticklabels.append(v[0])
-        else:
-            non_A_ticks.append(i)
-            non_A_ticklabels.append(v[0])
-    ax.set_yticks(A_ticks)
-    ax.set_yticklabels(A_ticklabels, size=7)
-    ax.set_yticks(non_A_ticks, minor=True)
-    ax.set_yticklabels(non_A_ticklabels, size=7, minor=True, color='tab:gray')
-    ax.set_xlabel("Allele Freq.")
-    ax.set_ylim(-0.8, len(vars) - 0.3)
-    ax.set_xticks([0.5, 0.6, 0.8, 1.0])
-    ax.set_xticklabels([0.5, 0.6, 0.8, 1.0])
-    ax.set_xlim(left=0.5)
-    fig.tight_layout()
-    fig.savefig("high_freq_vars.pdf")
-
-
-def analyze_high_freq_vars() -> List:
-    vars = []
-    labels = ["N-term", "TM1", "ICL1", "TM2", "ECL1", "TM3", "ICL2", "TM4", "ECL2", "TM5", "ICL3", "TM6", "ECL3", "TM7", "H8", "ICL4", "C-term", "None"]
-    cmap = plt.get_cmap('rainbow', len(labels) - 1)
-    colors = [cmap(i) for i in range(len(labels) - 1)] + ['tab:gray']
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, 'ensembl.json')) as f:
-            display_name = json.load(f)['display_name']
-        with open(os.path.join(dpath, '38KJPN-CDS.csv')) as f:
-            for l in f.readlines():
-                if l.startswith('#'):
-                    continue
-                cols = l.split('\t')
-                var_type = cols[0]
-                res_num = cols[3]
-                aa_ref = cols[6]
-                aa_alt = cols[9]
-                seg = cols[10]
-                gen_num = cols[11]
-                freq = float(cols[14])
-                if seg == 'None':
-                    print(dpath, l)
-                if var_type == VariationType.MISSENSE.name:
-                    if freq > 0.5:
-                        label = "{} {}{}{} ({})".format(display_name, aa_ref, res_num, aa_alt, gen_num if gen_num != 'None' else seg)
-                        color = colors[labels.index(seg)]
-                        classA = True if receptor_class == 'Class A (Rhodopsin)' else False
-                        var = [label, freq, color, classA]
-                        vars.append(var)
-    print(sorted([v[0] for v in vars if v[3]], key=lambda v: v.split('(')[1]))
-    return vars
 
 def plot_family_A_pos(count: Dict, g_num_count: Dict):
     g_nums = list(g_num_count.keys())

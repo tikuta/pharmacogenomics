@@ -39,6 +39,12 @@ class Segment(enum.Enum):
         for i, seg in enumerate(Segment):
             if seg == self:
                 return cmap(i)
+            
+    @property
+    def index(self):
+        for i, seg in enumerate(Segment):
+            if seg == self:
+                return i
     
     @classmethod
     def value_of(cls, target):
@@ -140,7 +146,7 @@ def translate(seq: str, **unusual_codons) -> str:
     return ret
 
 class SNV:
-    def __init__(self, chromosome: str, position: int, rsid: str, ref: str, alt: str, AC, AN, AF, AC_XX, AN_XX, AF_XX, AC_XY, AN_XY, AF_XY) -> None:
+    def __init__(self, chromosome: str, position: int, rsid: str, ref: str, alt: str, AC, AN, AF) -> None:
         assert(len(ref) == len(alt) == 1)
         self.chromosome = normalized_chromosome(chromosome)
         self.position = position
@@ -151,14 +157,6 @@ class SNV:
         self.AC = AC
         self.AN = AN
         self.AF = AF
-        
-        self.AC_XX = AC_XX
-        self.AN_XX = AN_XX
-        self.AF_XX = AF_XX
-
-        self.AC_XY = AC_XY
-        self.AN_XY = AN_XY
-        self.AF_XY = AF_XY
 
 class Variation:
     def __init__(self, line: str) -> None:
@@ -170,7 +168,10 @@ class Variation:
         self.ref = cols[3]
         assert(',' not in self.ref)
         self.alts = cols[4].split(',')
-        self.quality = float(cols[5])
+        try:
+            self.quality = float(cols[5])
+        except:
+            self.quality = cols[5]
         self.passed = True if cols[6] == 'PASS' else False
         
         # Some keys may not have values (e.g., TOMMO_POSSIBLE_PLATFORM_BIAS_SITE)
@@ -179,16 +180,8 @@ class Variation:
         self.AC = [int(v) for v in keyvals['AC'].split(',')]
         self.AN = int(keyvals['AN'])
         self.AF = keyvals['AF'].split(',') # retain as string
-        
-        self.AC_XX = [int(v) for v in keyvals['AC_XX'].split(',')]
-        self.AN_XX = int(keyvals['AN_XX'])
-        self.AF_XX = keyvals['AF_XX'].split(',')
 
-        self.AC_XY = [int(v) for v in keyvals['AC_XY'].split(',')]
-        self.AN_XY = int(keyvals['AN_XY'])
-        self.AF_XY = keyvals['AF_XY'].split(',')
-
-        assert(len(self.alts) == len(self.AC) == len(self.AF) == len(self.AC_XX) == len(self.AF_XX) == len(self.AC_XY) == len(self.AC_XY))
+        assert(len(self.alts) == len(self.AC) == len(self.AF))
 
     def snvs(self) -> List[SNV]:
         ret = []
@@ -197,10 +190,7 @@ class Variation:
                 assert(self.ref in 'ACGT')
                 if len(alt) == 1: # 1:1 SNV
                     assert(alt in 'ACGT') # Illegal VCF can contain '-' to indicate deletions
-                    ret.append(SNV(self.chromosome, self.position, self.rsid, self.ref, alt, 
-                                   self.AC[i], self.AN, self.AF[i],
-                                   self.AC_XX[i], self.AN_XX, self.AF_XX[i],
-                                   self.AC_XY[i], self.AN_XY, self.AF_XY[i]))
+                    ret.append(SNV(self.chromosome, self.position, self.rsid, self.ref, alt, self.AC[i], self.AN, self.AF[i]))
                 else: # 1:N insertion
                     pass
             else:
@@ -214,13 +204,10 @@ class Variation:
                             count += 1
                             idx = j
                     if count == 1: # 1:1 SNV
-                        ret.append(SNV(self.chromosome, self.position + idx, self.rsid, self.ref[idx], alt[idx],
-                                        self.AC[i], self.AN, self.AF[i],
-                                        self.AC_XX[i], self.AN_XX, self.AF_XX[i],
-                                        self.AC_XY[i], self.AN_XY, self.AF_XY[i]))
+                        ret.append(SNV(self.chromosome, self.position + idx, self.rsid, self.ref[idx], alt[idx], self.AC[i], self.AN, self.AF[i]))
                     else:
                         # Combination of 1:1 SNV (e.g. ACGT->ACCC)
-                        # No such calls in 38KJPN
+                        # No such calls in 54KJPN
                         raise NotImplementedError
                 else: # N:M indel
                     pass
