@@ -158,6 +158,9 @@ class SNV:
         self.AN = AN
         self.AF = AF
 
+    def __str__(self) -> str:
+        return "Chr{} {}, {}->{}, {}, AC={};AN={};AF={}".format(self.chromosome, self.position, self.ref, self.alt, self.rsid, self.AC, self.AN, self.AF)
+
 class Variation:
     def __init__(self, line: str) -> None:
         cols = line.strip().split('\t')

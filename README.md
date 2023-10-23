@@ -13,7 +13,10 @@ You may install via APT system in Ubuntu.
 - Pandas
 
 ## How to run
-1. Place VCF files and TBI files in `data` directory.
+1. Place VCF, TBI, and GZ files in `data` directory.
+    - 54KJPN: https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-54kjpn-20230626-af_snvindelall
+    - 1KGP: https://www.ebi.ac.uk/eva/?eva-study=PRJEB31735
+    - AlphaMissense: https://console.cloud.google.com/storage/browser/dm_alphamissense
 2. Execute `run.py`. The script depends on the following sites:
     - GPCRdb
     - UniProt

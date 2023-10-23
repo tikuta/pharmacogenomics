@@ -5,7 +5,8 @@ import gpcrdb
 import uniprot
 import ensembl
 import vcf
-from utils import Region, Gene, Variation
+import alphamissense
+from utils import Region, Gene, Variation, VariationType
 from misc import *
 
 def main():
@@ -51,6 +52,7 @@ def main():
         generic_numbers = gpcrdb.get_generic_number(entry_name, os.path.join(dpath, "gpcrdb.json"))
 
         accession = d['accession']
+        ams = alphamissense.extract(accession, os.path.join(dpath, "alpha_missense.tsv"))
 
         entry = uniprot.get_entry(accession, os.path.join(dpath, "uniprot.json"))
         gene_id = uniprot.uniprot2ensembl(entry)
@@ -101,7 +103,7 @@ def main():
             header += ["Ref_Base", "Ref_Codon", "Ref_AA"]
             header += ["Alt_Base", "Alt_Codon", "Alt_AA"]
             header += ["Seg", "Generic_Num"]
-            header += ["AC", "AN", "AF"]
+            header += ["AC", "AN", "AF", "pathogenicity"]
             jpn_csv.write('#' + '\t'.join(header) + '\n')
             global_csv.write('#' + '\t'.join(header) + '\n')
 
@@ -125,11 +127,28 @@ def main():
                         assert(res['ensembl_sequence_number'] == anno.res_num)
                         seg = res['segment']
                         generic_num = res['generic_number']
+
+                        pathogenicity = None
+                        if anno.var_type == VariationType.MISSENSE:    
+                            for am in ams:
+                                if snv.chromosome == am.chromosome and snv.position == am.position and snv.alt == am.alt:
+                                    if snv.ref != am.ref:
+                                        print("GRCh38 vs AlphaMissense base unmatch!", snv.ref, "vs.", am.ref)
+                                    sub = anno.ref_aa + str(anno.res_num) + anno.alt_aa
+                                    if sub != am.variant:
+                                        print("GRCh38 vs AlphaMissense substitution unmatch!", sub, "vs.", am.variant)
+                                    pathogenicity = am.pathogenicity
+
+                            if not pathogenicity:
+                                print("No corresponding variant in AlphaMissense!", snv)
+                        else:
+                            pathogenicity = -1
+
                         cols = [anno.var_type, snv.chromosome, snv.position, snv.rsid, anno.res_num]
                         cols += [snv.ref, anno.ref_codon, anno.ref_aa]
                         cols += [snv.alt, anno.alt_codon, anno.alt_aa]
                         cols += [seg, generic_num]
-                        cols += [snv.AC, snv.AN, snv.AF]
+                        cols += [snv.AC, snv.AN, snv.AF, pathogenicity]
                         csv_file.write('\t'.join([str(col) for col in cols]) + '\n')
 
 if __name__ == '__main__':
