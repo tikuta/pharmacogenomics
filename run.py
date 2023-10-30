@@ -104,6 +104,8 @@ def main():
             header += ["Alt_Base", "Alt_Codon", "Alt_AA"]
             header += ["Seg", "Generic_Num"]
             header += ["AC", "AN", "AF", "pathogenicity"]
+            header += ["AC_XX", "AN_XX", "AF_XX"]
+            header += ["AC_XY", "AN_XY", "AF_XY"]
             jpn_csv.write('#' + '\t'.join(header) + '\n')
             global_csv.write('#' + '\t'.join(header) + '\n')
 

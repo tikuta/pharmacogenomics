@@ -184,7 +184,24 @@ class Variation:
         self.AN = int(keyvals['AN'])
         self.AF = keyvals['AF'].split(',') # retain as string
 
-        assert(len(self.alts) == len(self.AC) == len(self.AF))
+        try:
+            self.AC_XX = [int(v) for v in keyvals['AC_XX'].split(',')]
+            self.AN_XX = int(keyvals['AN_XX'])
+            self.AF_XX = keyvals['AF_XX'].split(',')
+
+            self.AC_XY = [int(v) for v in keyvals['AC_XY'].split(',')]
+            self.AN_XY = int(keyvals['AN_XY'])
+            self.AF_XY = keyvals['AF_XY'].split(',')
+        except: # 1KGP does not contain these entries
+            self.AC_XX = [-1] * len(self.AC)
+            self.AN_XX = -1
+            self.AF_XX = [-1] * len(self.AF)
+            
+            self.AC_XY = [-1] * len(self.AC)
+            self.AN_XY = -1
+            self.AF_XY = [-1] * len(self.AF)
+
+        assert(len(self.alts) == len(self.AC) == len(self.AF) == len(self.AC_XX) == len(self.AF_XX) == len(self.AC_XY) == len(self.AF_XY))
 
     def snvs(self) -> List[SNV]:
         ret = []

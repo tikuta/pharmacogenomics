@@ -8,3 +8,4 @@ couplings.csv
 couplings.html
 couplings_extracted.csv
 *.pyc
+*.csv
