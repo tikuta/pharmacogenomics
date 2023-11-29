@@ -6,8 +6,11 @@ VCF_GLOBAL_GENE_FILENAME = "GLOBAL-GENE.vcf"
 VCF_GLOBAL_CDS_FILENAME = "GLOBAL-CDS.vcf"
 CSV_GLOBAL_CDS_FILENAME = "GLOBAL-CDS.csv"
 
+ALIGNMENT_CANDIDATES_FILENAME = "alignment-candidates.txt"
+
 AM_THRESHOLD_PATHOGENIC = 0.564
 AM_THRESHOLD_BENIGN = 0.34
+AM_FILENAME = "alpha_missense.tsv"
 
 AA2COLOR = {
     "A": "#ffff00",
@@ -41,16 +44,13 @@ AA2COLOR = {
     "P": "#d603ff",
 }
 
-
 BLOCKLIST = (
     # pseudogenes
-    'npy6r_human',
-    'taar3_human',
-    'agre4_human',
-    # ncRNA
-    'agrf2_human', # https://www.ncbi.nlm.nih.gov/gene/222611
-    # CHR_HSCHR12_2_CTG2
-    't2r45_human',
+    'npy6r_human', # https://www.uniprot.org/uniprotkb/Q99463/entry
+    'taar3_human', # https://www.uniprot.org/uniprotkb/Q9P1P4/entry
+    'agre4_human', # https://www.uniprot.org/uniprotkb/Q86SQ3/entry
+    'agrf2_human', # https://www.uniprot.org/uniprotkb/Q8IZF7/entry
+    't2r45_human', # https://useast.ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=ENSG00000261936;r=HSCHR12_2_CTG2:327495-328424;t=ENST00000571573
     # olfactory receptors
     'o51i1_human', 
     'o51e1_human',

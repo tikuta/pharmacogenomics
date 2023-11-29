@@ -4,193 +4,146 @@ import requests
 import json
 import os
 from typing import List, Dict
-from Bio.Align import PairwiseAligner
-from misc import BLOCKLIST
+from config import BLOCKLIST
 import pandas as pd
+from utils import Segment
 
-def get_filtered_receptor_list(fpath, force=False):
-    receptors = get_receptor_list(fpath, force=force)
-    for receptor in receptors:
-        species = receptor['species']
+class GPCRdbEntry:
+    def __init__(self, entry_name: str, accession: str, receptor_class: str, force=False) -> None:
+        self.entry_name = entry_name
+        self.accession = accession
+        self.receptor_class = receptor_class
+
+        self.dirpath = os.path.join(self.receptor_class, self.entry_name)
+        os.makedirs(self.dirpath, exist_ok=True)
+
+        self.generic_number_path = os.path.join(self.dirpath, "gpcrdb.json")
+        self.uniprot_path = os.path.join(self.dirpath, "uniprot.json")
+
+        self._get_generic_numbers(force=force)
+        with open(self.generic_number_path) as f:
+            generic_numbers = json.load(f)
+            self.protein_seq = ''
+            self.generic_numbers = []
+            self.segments = []
+
+            for res in generic_numbers:
+                self.protein_seq += res['amino_acid']
+                self.generic_numbers.append(res['display_generic_number'])
+                self.segments.append(Segment.value_of(res['protein_segment']))
+
+        self._get_uniprot_entry(force=force)
+        with open(self.uniprot_path) as f:
+            j = json.load(f)
+
+            self.ensembl_id_candidates = []
+            for ref in j['uniProtKBCrossReferences']:
+                if ref['database'] == 'Ensembl':
+                    for prop in ref['properties']:
+                        if prop['key'] == 'GeneId':
+                            gene_id = prop['value'].split('.')[0]
+                            self.ensembl_id_candidates.append(gene_id)
+        if self.accession == 'Q6PRD1': # gp179_human
+            # Overwrite associated ID ENSG00000276469 with manual ID mapping
+            self.ensembl_id_candidates = ['ENSG00000277399']
+        if len(self.ensembl_id_candidates) == 0:
+            # Manual mapping for unassociated entries
+            if self.accession == 'P59539': # t2r45_human
+                self.ensembl_id_candidates = ['ENSG00000261936']
+            elif self.accession == 'Q7Z7M1': # agrd2_human
+                self.ensembl_id_candidates = ['ENSG00000180264']
+            else:
+                raise Exception("No Gene ID found for {}".format(self.entry_name))
+        self.ensembl_id_candidates = set(self.ensembl_id_candidates)
+        
+    def __str__(self) -> str:
+        return "{} > {} ({})".format(self.receptor_class, self.entry_name, self.accession)
+    
+    def _get_generic_numbers(self, force=False):
+        if not os.path.exists(self.generic_number_path) or force is True:
+            uri = "https://gpcrdb.org/services/residues/extended/{}/".format(self.entry_name)
+
+            r = requests.get(uri)
+            if not r.ok:
+                raise Exception
+            
+            j = r.json()
+            
+            with open(self.generic_number_path, 'w') as f:
+                json.dump(j, f, indent=2)
+
+    def _get_uniprot_entry(self, force=False):
+        if not os.path.exists(self.uniprot_path) or force is True:
+            uri = "https://rest.uniprot.org/uniprotkb/{}.json".format(self.accession)
+            r = requests.get(uri)
+
+            if not r.ok:
+                raise Exception
+            
+            j = r.json()
+            
+            with open(self.uniprot_path, 'w') as f:
+                json.dump(j, f, indent=2)
+
+def get_filtered_receptor_list(force=False):
+    receptors = _get_receptor_list(force=force)
+    for r in receptors:
+        species = r['species']
         if species != "Homo sapiens":
             continue
-        entry_name = receptor['entry_name']
+
+        entry_name = r['entry_name']
         if entry_name in BLOCKLIST:
             continue
-        yield receptor
+        
+        accession = r['accession']
+        receptor_class = r['receptor_class']
+        try:
+            yield GPCRdbEntry(entry_name, accession, receptor_class, force=force)
+        except Exception as e:
+            print("Skipped {}: {}".format(entry_name, str(e)))
 
-def get_receptor_list(fpath, force=False):
-    if os.path.exists(fpath) and force is False:
-        with open(fpath) as f:
-            return json.load(f)
+def _get_receptor_list(force=False) -> List[Dict]:
+    p = os.path.join("data", "receptors.json")
+    if not os.path.exists(p) or force is True:
+        uri = "https://gpcrdb.org/services/receptorlist/"
+        r = requests.get(uri)
 
-    uri = "https://gpcrdb.org/services/receptorlist/"
-    r = requests.get(uri)
+        if not r.ok:
+            raise Exception
+        
+        j = r.json()
+        
+        with open(p, 'w') as f:
+            json.dump(j, f, indent=2)
 
-    if not r.ok:
-        raise Exception
-    
-    j = r.json()
-    
-    with open(fpath, 'w') as f:
-        json.dump(j, f, indent=2)
+    with open(p) as f:
+        return json.load(f)
 
-    return j
+def _get_coupling(force=False) -> pd.DataFrame:
+    html = os.path.join("data", "couplings.html")
+    csv = os.path.join("data", "couplings.csv")
 
-def get_generic_number(entry_name, fpath, force=False):
-    if os.path.exists(fpath) and force is False:
-        with open(fpath) as f:
-            return json.load(f)
-
-    uri = "https://gpcrdb.org/services/residues/extended/{}/".format(entry_name)
-
-    r = requests.get(uri)
-    if not r.ok:
-        raise Exception
-    
-    j = r.json()
-    
-    with open(fpath, 'w') as f:
-        json.dump(j, f, indent=2)
-    
-    return j
-
-def extract_sequence(generic_numbers) -> str:
-    amino_acids = [None] * len(generic_numbers)
-    for residue in generic_numbers:
-        sequence_number = int(residue['sequence_number'])
-        amino_acids[sequence_number - 1] = residue['amino_acid']
-    return ''.join(amino_acids)
-
-def extract_segments(generic_numbers) -> List[str]:
-    ret = [None] * len(generic_numbers)
-    for d in generic_numbers:
-        sequence_num = d['sequence_number']
-        segment = d['protein_segment']
-        ret[sequence_num - 1] = segment
-    assert(None not in ret)
-    return ret
-
-def extract_generic_numbers(generic_numbers, scheme) -> List[str]:
-    ret = [None] * len(generic_numbers)
-    for d in generic_numbers:
-        sequence_num = d['sequence_number']
-        if d['display_generic_number'] is None:
-            ret[sequence_num - 1] = None
-            continue
-        for alt in d['alternative_generic_numbers']:
-            if alt['scheme'] == scheme:
-                ret[sequence_num - 1] = alt['label']
-    return ret
-
-def match(seq, generic_numbers, receptor_class, fpath, alignment_for_human=None, force=False):
-    if os.path.exists(fpath) and force is False:
-        with open(fpath) as f:
-            return json.load(f)
-    
-    class2scheme = {
-        "Class A (Rhodopsin)": "BW", 
-        "Class B1 (Secretin)": "Wootten", 
-        "Class B2 (Adhesion)": "Wootten", 
-        "Class C (Glutamate)": "Pin",
-        "Class F (Frizzled)": "Wang",
-        "Class T (Taste 2)": None,
-        "Other GPCRs": None
-    }
-    scheme = class2scheme[receptor_class]
-    segments = extract_segments(generic_numbers)
-    generic_nums = extract_generic_numbers(generic_numbers, scheme)
-    ref_seq = extract_sequence(generic_numbers)
-
-    aligner = PairwiseAligner()
-    aligner.mode = 'global'
-    aligner.match_score = 2
-    aligner.mismatch_score = -1
-    aligner.open_gap_score = -2
-    aligner.extend_gap_score = -0.1
-    alignment = aligner.align(ref_seq, seq)[0]
-
-    residues = []
-    for target, query in zip(*alignment.aligned):
-        for t_res_idx, q_res_idx in zip(range(*target), range(*query)):
-            residue = {
-                "ensembl_sequence_number": q_res_idx + 1, 
-                "ensembl_amino_acid": seq[q_res_idx], 
-                "segment": segments[t_res_idx], 
-                "generic_number": generic_nums[t_res_idx],
-                "gpcrdb_sequence_number": t_res_idx + 1,
-                "gpcrdb_amino_acid": ref_seq[t_res_idx]
-            }
-            residues.append(residue)
-    ensembl_seq_nums = [r['ensembl_sequence_number'] for r in residues]
-    for i in range(len(seq)):
-        res_num = i + 1
-        if res_num not in ensembl_seq_nums:
-            residue = {
-                "ensembl_sequence_number": res_num, 
-                "ensembl_amino_acid": seq[i], 
-                "segment": None, 
-                "generic_number": None,
-                "gpcrdb_sequence_number": None,
-                "gpcrdb_amino_acid": None
-            }
-            residues.append(residue)
-    residues.sort(key=lambda r: r['ensembl_sequence_number'])
-
-    # Fill missing segment
-    for i, r in enumerate(residues):
-        if r['segment'] is None:
-            n_seg = 'N-term'
-            for rn in reversed(residues[:i]):
-                if rn['segment'] is not None:
-                    n_seg = rn['segment']
-                    break
-
-            c_seg = 'C-term'
-            for rc in residues[i:]:
-                if rc['segment'] is not None:
-                    c_seg = rc['segment']
-                    break
-            
-            if n_seg == c_seg:
-                new_r = r
-                new_r['segment'] = n_seg
-                residues[i] = new_r
-
-    ret = {"receptor_class": receptor_class, "scheme": scheme, "residues": residues}
-
-    with open(fpath, 'w') as f:
-        json.dump(ret, f, indent=2)
-
-    if alignment_for_human:
-        with open(alignment_for_human, 'w') as f:
-            f.write(str(alignment))
-
-    return ret
-
-def extract_coupling(fpath, force=False) -> pd.DataFrame:
-    if os.path.exists(fpath) and force is False:
-        return pd.read_csv(fpath)
-    
-    html = "couplings.html"
-    if not os.path.exists(html) or force is True:
+    if os.path.exists(html) or force is True:
         uri = "https://gproteindb.org/signprot/couplings#"
         r = requests.get(uri)
+
         if not r.ok:
             raise
+
         with open(html, 'w', encoding='utf-8') as f:
             f.write(r.text)
+
     dfs = pd.read_html(html, displayed_only=False, attrs={'id': 'familiestabletab'})
     assert(len(dfs) == 1)
     df = dfs[0].drop(0).rename(columns=lambda x: x.replace('  ×', ''))
-    df.to_csv("couplings.csv")
     extracted = df[['Source', 'Receptor', 'Guide to Pharmacology']][df[('Source', 'Group')] == 'Inoue'].droplevel(0, axis=1)
-    extracted.to_csv(fpath)
+    extracted.to_csv(csv)
 
-    return pd.read_csv(fpath)
+    return extracted
 
-def primary_coupled_receptors() -> Dict:
-    df = extract_coupling("couplings_extracted.csv")
+def primary_coupled_receptors(force=False) -> Dict:
+    df = _get_coupling(force=force)
     df_A = df[df['Cl'] == 'A']
     df_primary_Gs    = df_A[(df_A['Gs'] == "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] != "1'")]
     df_primary_Gio   = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] == "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] != "1'")]
@@ -209,7 +162,3 @@ def primary_coupled_receptors() -> Dict:
         "promiscuous": list(df_promiscuous['Uniprot']),
         }
     return d
-    
-
-if __name__ == '__main__':
-    pass

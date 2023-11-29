@@ -2,13 +2,8 @@
 
 import requests
 import json
-import os
 
 def get_entry(accession, fpath):
-    if os.path.exists(fpath):
-        with open(fpath) as f:
-            return json.load(f)
-        
     uri = "https://rest.uniprot.org/uniprotkb/{}.json".format(accession)
     r = requests.get(uri)
 
@@ -24,7 +19,7 @@ def get_entry(accession, fpath):
 
 def uniprot2ensembl(entry):
     if entry['uniProtkbId'] == 'GP179_HUMAN':
-        # In Uniprot, GPR179 is united with ENSG00000276469 on CHR_HSCHR17_7_CTG4.
+        # In UniProt, GPR179 is united with ENSG00000276469 on CHR_HSCHR17_7_CTG4.
         # However, GPR179 is mapped on Chromosome 17 in the primary assembly.
         return 'ENSG00000277399'
 
