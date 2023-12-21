@@ -53,9 +53,28 @@ def main():
         vcf.filter_vcf(vcfs_jpn, [gene_region], os.path.join(gpcrdb_entry.dirpath, VCF_JPN_GENE_FILENAME))
         vcf.filter_vcf(vcfs_global, [gene_region], os.path.join(gpcrdb_entry.dirpath, VCF_GLOBAL_GENE_FILENAME))
 
-        vcf.filter_vcf(vcfs_jpn, ensembl_entry.ordered_coding_regions, os.path.join(gpcrdb_entry.dirpath, VCF_JPN_CDS_FILENAME))
-        vcf.filter_vcf(vcfs_global, ensembl_entry.ordered_coding_regions, os.path.join(gpcrdb_entry.dirpath, VCF_GLOBAL_CDS_FILENAME))
+        vcf_jpn_path = os.path.join(gpcrdb_entry.dirpath, VCF_JPN_CDS_FILENAME)
+        vcf_global_path = os.path.join(gpcrdb_entry.dirpath, VCF_GLOBAL_CDS_FILENAME)
+        
+        vcf.filter_vcf(vcfs_jpn, ensembl_entry.ordered_coding_regions, vcf_jpn_path)
+        vcf.filter_vcf(vcfs_global, ensembl_entry.ordered_coding_regions, vcf_global_path)
 
+        csv_jpn_path = os.path.join(gpcrdb_entry.dirpath, CSV_JPN_CDS_FILENAME)
+        csv_global_path = os.path.join(gpcrdb_entry.dirpath, CSV_GLOBAL_CDS_FILENAME)
+
+        with open(csv_jpn_path, 'w') as f:
+            f.write(ensembl.Annotation.header() + '\n')
+
+            for snv in vcf.iterate_vcf(vcf_jpn_path, '54KJPN'):
+                anno = ensembl_entry.annotate(snv)
+                f.write(anno.to_csv_line() + '\n')
+
+        with open(csv_global_path, 'w') as f:
+            f.write(ensembl.Annotation.header() + '\n')
+
+            for snv in vcf.iterate_vcf(vcf_global_path, '54KJPN'):
+                anno = ensembl_entry.annotate(snv)
+                f.write(anno.to_csv_line() + '\n')
 """
             # Annotate variations on CDS
             jpn_csv = open(os.path.join(dpath, CSV_JPN_CDS_FILENAME), 'w')

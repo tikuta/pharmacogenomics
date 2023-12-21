@@ -66,7 +66,8 @@ def _check_before_lookup(cols: List[str], expected_chromosome: str, expected_uni
     assert(genome == 'hg38')
     assert(chromosome == expected_chromosome)
     assert(uniprot_id == expected_uniprot_id)
-    assert(transcript_id == expected_transcript_id)
+    if transcript_id.split('.')[0] != expected_transcript_id: # Remove tailing version from AlphaMissense data
+        raise Exception("AlphaMissense transcipt ID ({}) and Ensembl canonical transcript ID ({}) did not match!".format(transcript_id, expected_transcript_id))
 
 def _check_after_lookup(cols: List[str], expected_substitution: str):
     substitution = cols[7]

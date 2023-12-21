@@ -61,14 +61,16 @@ class EnsemblGeneEntry:
             self.protein_seq = j['translated']
             self.stranded_coding_sequence = j['canonical_cds']
 
-        self._assign_generic_number(force=force)
+        self._assign_generic_number(force=True)
         self.generic_numbers = []
+        self.segments = []
         with open(self.alignment_path) as f:
             for l in f.readlines():
                 if l.startswith('#'):
                     continue
                 res = MatchedResidue.from_csv_line(l)
                 self.generic_numbers.append(res.generic_number)
+                self.segments.append(res.segment)
 
     def _get_ensembl_gene_entry(self, force=False, max_try=5):
         if os.path.exists(self.ensembl_path) and force is False:
@@ -283,14 +285,16 @@ class EnsemblGeneEntry:
                     self.gpcrdb_entry.protein_seq[gpcrdb_res_idx], gpcrdb_res_idx + 1
                 )
                 residues.append(residue)
+        print("Total {}/{} residues were filled by alignment.".format(len(residues), len(self.protein_seq)))
 
         # Add unaligned residues
-        aligned_residue_numbers = (r.ensembl_residue_number for r in residues)
+        aligned_residue_numbers = [r.ensembl_residue_number for r in residues]
         for res_num in range(1, len(self.protein_seq) + 1):
             if res_num not in aligned_residue_numbers:
                 residue = MatchedResidue(self.protein_seq[res_num - 1], res_num, None, None, None, None)
                 residues.append(residue)
         residues.sort(key=lambda r: r.ensembl_residue_number)
+        print("Increased from {} to {} residues by adding unaligned residues".format(len(aligned_residue_numbers), len(residues)))
 
         # Fill missing segments with the sandwiched segments
         for i in range(len(residues)):
@@ -315,6 +319,9 @@ class EnsemblGeneEntry:
         return residues
 
     def _assign_generic_number(self, force=False):
+        if self.gpcrdb_entry.entry_name in ["ccr2_human", "gp142_human", "agrd2_human", "agrf3_human", "agrg6_human", "agrl2_human", "agrl3_human", "celr1_human"]:
+            force = True
+
         if os.path.exists(self.alignment_path) and force is False:
             return
         
@@ -327,10 +334,10 @@ class EnsemblGeneEntry:
                 # However, in such cases, the number of unmatched residues will be too big.
                 unmatched_residues = [1 if r1 != r2 else 0 for r1, r2 in zip(self.gpcrdb_entry.protein_seq, self.protein_seq)]
                 print("CAUTION: GPCRdb and Ensembl sequence had the same length with total {} unmathced residues.".format(sum(unmatched_residues)))
-            for i in range(len(self.gpcrdb_entry.protein_seq)):
-                res = MatchedResidue(self.protein_seq[i], i + 1, 
+            for i, (gpcrdb_aa, ensembl_aa) in enumerate(zip(self.gpcrdb_entry.protein_seq, self.protein_seq)):
+                res = MatchedResidue(ensembl_aa, i + 1, 
                                      self.gpcrdb_entry.segments[i], self.gpcrdb_entry.generic_numbers[i],
-                                     self.protein_seq[i], i + 1)
+                                     gpcrdb_aa, i + 1)
                 residues.append(res)
         else:
             # In case insertions/deletions, alignment needed.
@@ -352,25 +359,30 @@ class EnsemblGeneEntry:
         altered_stranded = altered_spliced if self.strand == 1 else complementary_sequence(altered_spliced)[::-1]
         altered_translated = translate(altered_stranded)
         
-        for res_num in range(1, len(self.protein_seq) / 3 + 1):
+        for res_num in range(1, len(self.protein_seq) + 1):
             ref_codon = self.stranded_coding_sequence[3 * (res_num - 1): 3 * res_num]
             alt_codon = altered_stranded[3 * (res_num - 1): 3 * res_num]
             ref_aa = self.protein_seq[res_num - 1]
             alt_aa = altered_translated[res_num - 1]
-            gen_num = self.gpcrdb_entry.generic_numbers[res_num - 1]
+            gen_num = self.generic_numbers[res_num - 1]
+            segment = self.segments[res_num - 1]
 
-            if ref_codon != alt_codon:
-                var_type, pathogenicity = None, None
-                if alt_aa == '*':
-                    var_type = VariationType.NONSENSE
-                elif ref_aa == alt_aa:
-                    var_type = VariationType.SILENT
-                else:
-                    var_type = VariationType.MISSENSE
-                    substitution = ref_aa + str(res_num) + alt_aa
-                    pathogenicity = alphamissense.lookup(self.alphamissense_path, snv, self.gpcrdb_entry.accession, self.canonical_translation_id, substitution)
+            if ref_codon == alt_codon:
+                continue
 
-                return Annotation(var_type, snv, ref_codon, alt_codon, res_num, gen_num, pathogenicity)
+            var_type, pathogenicity = None, None
+            if alt_aa == '*':
+                var_type = VariationType.NONSENSE
+            elif ref_aa == alt_aa:
+                var_type = VariationType.SILENT
+            else:
+                var_type = VariationType.MISSENSE
+                substitution = ref_aa + str(res_num) + alt_aa
+                try:
+                    pathogenicity = alphamissense.lookup(self.alphamissense_path, snv, self.gpcrdb_entry.accession, self.canonical_transcript_id, substitution)
+                except: # Could not find AlphaMissense pathogenicity due to the transcript ID mismatch
+                    pathogenicity = -1
+            return Annotation(var_type, snv, ref_codon, alt_codon, res_num, segment, gen_num, pathogenicity)
         raise Exception("Annotation is unavailable!")
 
 class MatchedResidue:
@@ -421,15 +433,21 @@ class Annotation:
 
     def to_csv_line(self) -> str:
         cols = [str(self.var_type), normalized_chromosome(self.snv.chromosome), str(self.snv.position), self.snv.rsid]
+        cols += [str(self.residue_number)]
         cols += [self.snv.ref, self.ref_codon, self.ref_aa]
         cols += [self.snv.alt, self.alt_codon, self.alt_aa]
-        cols += [self.segment, self.generic_number]
+        cols += [str(self.segment), str(self.generic_number)]
         cols += [str(self.snv.AC), str(self.snv.AN), str(self.snv.AF), str(self.pathogenicity)]
         return ','.join(cols)
     
     @classmethod
     def from_csv_line(cls, line: str):
-        raise NotImplementedError
+        cols = line.strip().split('\t')
+        snv = SNV(normalized_chromosome(cols[1]), int(cols[2]), cols[3], cols[5], cols[8], 
+                  int(cols[12]), int(cols[13]), float(cols[14]))
+
+        return cls(VariationType.name_of(cols[0]), snv, cols[6], cols[9], int(cols[4]),
+                   Segment.value_of(cols[11]), cols[12], float(cols[16]))
 
     @classmethod
     def header(cls) -> str:

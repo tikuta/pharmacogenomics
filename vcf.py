@@ -3,7 +3,7 @@
 import subprocess
 import os
 from utils import Region
-from typing import List
+from typing import List, Iterator
 from utils import normalized_chromosome
 
 class VariationEntry:
@@ -135,3 +135,23 @@ def filter_vcf(vcfs, regions: List[Region], fpath, force=False):
             cp = subprocess.run(args, check=True, text=True, capture_output=True)
             if cp.stdout:
                 f.write(cp.stdout)
+
+def iterate_vcf(vcf, mode: str) -> Iterator[SNV]:
+    assert(mode in ('1KGP', '54KJPN'))
+
+    with open(vcf) as f:
+        for l in f:
+            if len(l) == 0:
+                continue
+            if mode == '1KGP':
+                entry = VariationEntry.load_from_1KGP(l)
+            elif mode == '54KJPN':
+                entry = VariationEntry.load_from_54KJPN(l)
+            else:
+                raise Exception("Illegal mode {}".format(mode))
+            
+            if entry is None: # Quality not passed
+                continue
+            
+            for snv in entry.snvs:
+                yield snv
