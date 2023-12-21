@@ -75,63 +75,6 @@ def main():
             for snv in vcf.iterate_vcf(vcf_global_path, '54KJPN'):
                 anno = ensembl_entry.annotate(snv)
                 f.write(anno.to_csv_line() + '\n')
-"""
-            # Annotate variations on CDS
-            jpn_csv = open(os.path.join(dpath, CSV_JPN_CDS_FILENAME), 'w')
-            global_csv = open(os.path.join(dpath, CSV_GLOBAL_CDS_FILENAME), 'w')
-            header = ["Var_Type", "Chr", "Pos", "rsID", "Res_Num"]
-            header += ["Ref_Base", "Ref_Codon", "Ref_AA"]
-            header += ["Alt_Base", "Alt_Codon", "Alt_AA"]
-            header += ["Seg", "Generic_Num"]
-            header += ["AC", "AN", "AF", "pathogenicity"]
-            header += ["AC_XX", "AN_XX", "AF_XX"]
-            header += ["AC_XY", "AN_XY", "AF_XY"]
-            jpn_csv.write('#' + '\t'.join(header) + '\n')
-            global_csv.write('#' + '\t'.join(header) + '\n')
 
-            jpn_vcf = open(os.path.join(dpath, VCF_JPN_CDS_FILENAME))
-            global_vcf = open(os.path.join(dpath, VCF_GLOBAL_CDS_FILENAME))
-
-            for f, csv_file in zip([jpn_vcf, global_vcf], [jpn_csv, global_csv]):
-                for l in f.readlines():
-                    if len(l) == 0:
-                        continue
-
-                    var = Variation(l)
-                    if not var.passed:
-                        continue
-                    for snv in var.snvs():
-                        anno = gene.annotate(snv)
-                        try:
-                            res = matched['residues'][anno.res_num - 1]
-                        except:
-                            print(anno.res_num, snv.position, snv.rsid, snv.ref, snv.alt)
-                        assert(res['ensembl_sequence_number'] == anno.res_num)
-                        seg = res['segment']
-                        generic_num = res['generic_number']
-
-                        pathogenicity = None
-                        if anno.var_type == VariationType.MISSENSE:    
-                            for am in ams:
-                                if snv.chromosome == am.chromosome and snv.position == am.position and snv.alt == am.alt:
-                                    if snv.ref != am.ref:
-                                        print("GRCh38 vs AlphaMissense base unmatch!", snv.ref, "vs.", am.ref)
-                                    sub = anno.ref_aa + str(anno.res_num) + anno.alt_aa
-                                    if sub != am.variant:
-                                        print("GRCh38 vs AlphaMissense substitution unmatch!", sub, "vs.", am.variant)
-                                    pathogenicity = am.pathogenicity
-
-                            if not pathogenicity:
-                                print("No corresponding variant in AlphaMissense!", snv)
-                        else:
-                            pathogenicity = -1
-
-                        cols = [anno.var_type, snv.chromosome, snv.position, snv.rsid, anno.res_num]
-                        cols += [snv.ref, anno.ref_codon, anno.ref_aa]
-                        cols += [snv.alt, anno.alt_codon, anno.alt_aa]
-                        cols += [seg, generic_num]
-                        cols += [snv.AC, snv.AN, snv.AF, pathogenicity]
-                        csv_file.write('\t'.join([str(col) for col in cols]) + '\n')
-"""
 if __name__ == '__main__':
     main()
