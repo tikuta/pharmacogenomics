@@ -151,6 +151,6 @@ def analyze_var_seg():
     fig.savefig("./figures/1b_var_seg_percent.pdf")
 
 if __name__ == '__main__':
-    analyze_calls()
-    #analyze_var_type()
+    #analyze_calls()
+    analyze_var_type()
     #analyze_var_seg()

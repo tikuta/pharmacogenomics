@@ -451,12 +451,14 @@ class Annotation:
         l = line.strip('\n')
         if len(l) == 0 or l.startswith('#'):
             raise BlankLineError
-        cols = line.strip().split('\t')
+        cols = line.strip().split(',')
         snv = SNV(normalized_chromosome(cols[1]), int(cols[2]), cols[3], cols[5], cols[8], 
-                  int(cols[12]), int(cols[13]), float(cols[14]))
+                  int(cols[13]), int(cols[14]), float(cols[15]))
+        
+        pathogenicity = None if cols[16] == 'None' else float(cols[16])
 
         return cls(VariationType.name_of(cols[0]), snv, cols[6], cols[9], int(cols[4]),
-                   Segment.value_of(cols[11]), cols[12], float(cols[16]))
+                   Segment.value_of(cols[11]), cols[12], pathogenicity)
 
     @classmethod
     def header(cls) -> str:
