@@ -13,10 +13,7 @@ import ensembl
 def analyze_calls():
     num_cds, num_gene = 0, 0
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        print(receptor.entry_name)
-
         calls_gene = set()
-
         with open(receptor.japan_gene_vcf_path) as f:
             for l in f.readlines():
                 try:
@@ -37,7 +34,6 @@ def analyze_calls():
         assert(calls_cds.issubset(calls_gene))
         num_cds += len(calls_cds)
         num_gene += len(calls_gene)
-    print("Total", num_cds, num_gene)
 
     fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
 
@@ -71,7 +67,6 @@ def analyze_var_type():
                     continue
 
     total = num_missense + num_silent + num_nonsense
-    print(total, num_missense, num_silent, num_nonsense)
 
     fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
 
@@ -95,25 +90,22 @@ def analyze_var_type():
 def analyze_var_seg():
     seg_missense, seg_silent, seg_nonsense = {}, {}, {}
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, CSV_JPN_CDS_FILENAME)) as f:
+        with open(receptor.japan_cds_csv_path) as f:
             for l in f.readlines():
-                cols = l.split('\t')
-                if l.startswith('#'):
-                    header = cols
+                try:
+                    anno = ensembl.Annotation.from_csv_line(l)
+                    if anno.segment == None:
+                        print(receptor.entry_name, anno.snv)
+                        continue
+
+                    if anno.var_type == VariationType.MISSENSE:
+                        seg_missense[anno.segment.value] = seg_missense.get(anno.segment.value, 0) + 1
+                    elif anno.var_type == VariationType.SILENT:
+                        seg_silent[anno.segment.value] = seg_silent.get(anno.segment.value, 0) + 1
+                    elif anno.var_type == VariationType.NONSENSE:
+                        seg_nonsense[anno.segment.value] = seg_nonsense.get(anno.segment.value, 0) + 1
+                except ensembl.BlankLineError:
                     continue
-                var_type = cols[header.index('#Var_Type')]
-                seg = cols[header.index('Seg')]
-                if seg == 'None':
-                    print(dpath, l)
-                if var_type == VariationType.MISSENSE.name:
-                    seg_missense[seg] = seg_missense.get(seg, 0) + 1
-                elif var_type == VariationType.SILENT.name:
-                    seg_silent[seg] = seg_silent.get(seg, 0) + 1
-                elif var_type == VariationType.NONSENSE.name:
-                    seg_nonsense[seg] = seg_nonsense.get(seg, 0) + 1
 
     total_missense = sum([v for v in seg_missense.values()])
     total_silent = sum([v for v in seg_silent.values()])
@@ -151,6 +143,6 @@ def analyze_var_seg():
     fig.savefig("./figures/1b_var_seg_percent.pdf")
 
 if __name__ == '__main__':
-    #analyze_calls()
+    analyze_calls()
     analyze_var_type()
-    #analyze_var_seg()
+    analyze_var_seg()
