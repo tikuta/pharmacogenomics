@@ -50,29 +50,23 @@ def main():
         ensembl_entry.visualize()
 
         gene_region = Region(ensembl_entry.region.chromosome, ensembl_entry.region.start, ensembl_entry.region.end)
-        vcf.filter_vcf(vcfs_jpn, [gene_region], os.path.join(gpcrdb_entry.dirpath, VCF_JPN_GENE_FILENAME))
-        vcf.filter_vcf(vcfs_global, [gene_region], os.path.join(gpcrdb_entry.dirpath, VCF_GLOBAL_GENE_FILENAME))
-
-        vcf_jpn_path = os.path.join(gpcrdb_entry.dirpath, VCF_JPN_CDS_FILENAME)
-        vcf_global_path = os.path.join(gpcrdb_entry.dirpath, VCF_GLOBAL_CDS_FILENAME)
+        vcf.filter_vcf(vcfs_jpn, [gene_region], gpcrdb_entry.japan_gene_vcf_path, force=True)
+        vcf.filter_vcf(vcfs_global, [gene_region], gpcrdb_entry.global_gene_vcf_path, force=True)
         
-        vcf.filter_vcf(vcfs_jpn, ensembl_entry.ordered_coding_regions, vcf_jpn_path)
-        vcf.filter_vcf(vcfs_global, ensembl_entry.ordered_coding_regions, vcf_global_path)
+        vcf.filter_vcf(vcfs_jpn, ensembl_entry.ordered_coding_regions, gpcrdb_entry.japan_cds_vcf_path, force=True)
+        vcf.filter_vcf(vcfs_global, ensembl_entry.ordered_coding_regions, gpcrdb_entry.global_cds_vcf_path, force=True)
 
-        csv_jpn_path = os.path.join(gpcrdb_entry.dirpath, CSV_JPN_CDS_FILENAME)
-        csv_global_path = os.path.join(gpcrdb_entry.dirpath, CSV_GLOBAL_CDS_FILENAME)
-
-        with open(csv_jpn_path, 'w') as f:
+        with open(gpcrdb_entry.japan_cds_csv_path, 'w') as f:
             f.write(ensembl.Annotation.header() + '\n')
 
-            for snv in vcf.iterate_vcf(vcf_jpn_path, '54KJPN'):
+            for snv in vcf.iterate_vcf(gpcrdb_entry.japan_cds_vcf_path, '54KJPN'):
                 anno = ensembl_entry.annotate(snv)
                 f.write(anno.to_csv_line() + '\n')
 
-        with open(csv_global_path, 'w') as f:
+        with open(gpcrdb_entry.global_cds_csv_path, 'w') as f:
             f.write(ensembl.Annotation.header() + '\n')
 
-            for snv in vcf.iterate_vcf(vcf_global_path, '54KJPN'):
+            for snv in vcf.iterate_vcf(gpcrdb_entry.global_cds_vcf_path, '1KGP'):
                 anno = ensembl_entry.annotate(snv)
                 f.write(anno.to_csv_line() + '\n')
 

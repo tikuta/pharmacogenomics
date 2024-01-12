@@ -4,7 +4,7 @@ import requests
 import json
 import os
 from typing import List, Dict
-from config import BLOCKLIST
+from config import *
 import pandas as pd
 from utils import Segment
 
@@ -19,6 +19,12 @@ class GPCRdbEntry:
 
         self.generic_number_path = os.path.join(self.dirpath, "gpcrdb.json")
         self.uniprot_path = os.path.join(self.dirpath, "uniprot.json")
+        self.japan_gene_vcf_path = os.path.join(self.dirpath, VCF_JPN_GENE_FILENAME)
+        self.japan_cds_vcf_path = os.path.join(self.dirpath, VCF_JPN_CDS_FILENAME)
+        self.japan_cds_csv_path = os.path.join(self.dirpath, CSV_JPN_CDS_FILENAME)
+        self.global_gene_vcf_path = os.path.join(self.dirpath, VCF_GLOBAL_GENE_FILENAME)
+        self.global_cds_vcf_path = os.path.join(self.dirpath, VCF_GLOBAL_CDS_FILENAME)
+        self.global_cds_csv_path = os.path.join(self.dirpath, CSV_GLOBAL_CDS_FILENAME)
 
         self._get_generic_numbers(force=force)
         with open(self.generic_number_path) as f:

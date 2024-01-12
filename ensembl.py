@@ -14,6 +14,9 @@ from vcf import SNV
 from config import AM_FILENAME, ALIGNMENT_CANDIDATES_FILENAME
 import alphamissense
 
+class BlankLineError(Exception):
+    pass
+
 class EnsemblGeneEntry:
     def __init__(self, gpcrdb_entry: gpcrdb.GPCRdbEntry, force=False):
         self.gpcrdb_entry = gpcrdb_entry
@@ -405,7 +408,10 @@ class MatchedResidue:
 
     @classmethod
     def from_csv_line(cls, line: str):
-        cols = line.strip('\n').split(',')
+        l = line.strip('\n')
+        if len(l) == 0 or l.startswith('#'):
+            raise BlankLineError
+        cols = l.split(',')
         ensembl_residue, ensembl_residue_number = (None, None) if cols[0] == '-' else (cols[0][0], int(cols[0][1:]))
         gpcrdb_residue, gpcrdb_residue_number = (None, None) if cols[3] == '-' else (cols[3][0], int(cols[3][1:]))
 
@@ -432,16 +438,19 @@ class Annotation:
         self.pathogenicity = pathogenicity
 
     def to_csv_line(self) -> str:
-        cols = [str(self.var_type), normalized_chromosome(self.snv.chromosome), str(self.snv.position), self.snv.rsid]
-        cols += [str(self.residue_number)]
+        cols = [self.var_type, normalized_chromosome(self.snv.chromosome), self.snv.position, self.snv.rsid]
+        cols += [self.residue_number]
         cols += [self.snv.ref, self.ref_codon, self.ref_aa]
         cols += [self.snv.alt, self.alt_codon, self.alt_aa]
-        cols += [str(self.segment), str(self.generic_number)]
-        cols += [str(self.snv.AC), str(self.snv.AN), str(self.snv.AF), str(self.pathogenicity)]
-        return ','.join(cols)
+        cols += [self.segment, self.generic_number]
+        cols += [self.snv.AC, self.snv.AN, self.snv.AF, self.pathogenicity]
+        return ','.join([str(v) for v in cols])
     
     @classmethod
     def from_csv_line(cls, line: str):
+        l = line.strip('\n')
+        if len(l) == 0 or l.startswith('#'):
+            raise BlankLineError
         cols = line.strip().split('\t')
         snv = SNV(normalized_chromosome(cols[1]), int(cols[2]), cols[3], cols[5], cols[8], 
                   int(cols[12]), int(cols[13]), float(cols[14]))

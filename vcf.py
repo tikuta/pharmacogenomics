@@ -6,6 +6,12 @@ from utils import Region
 from typing import List, Iterator
 from utils import normalized_chromosome
 
+class NotPassedError(Exception):
+    pass
+
+class BlankLineError(Exception):
+    pass
+
 class VariationEntry:
     def __init__(self, chromosome: str, position: int, rsid: str, ref: str, alts: List[str], ACs: List[int], AN: int, AFs: List[float]):
         self.chromosome = normalized_chromosome(chromosome)
@@ -19,11 +25,14 @@ class VariationEntry:
     
     @classmethod
     def load_from_54KJPN(cls, line: str):
-        cols = line.strip().split('\t')
+        l = line.strip()
+        if len(l) == 0:
+            raise BlankLineError
+        cols = l.split('\t')
 
         passed = True if cols[6] == 'PASS' else False
         if not passed:
-            return None
+            raise NotPassedError(cols[6])
 
         chromosome = cols[0]
         position = int(cols[1])
@@ -45,11 +54,14 @@ class VariationEntry:
     
     @classmethod
     def load_from_1KGP(cls, line: str):
-        cols = line.strip().split('\t')[:8]
+        l = line.strip()
+        if len(l) == 0:
+            raise BlankLineError
+        cols = l.split('\t')[:8]
 
         passed = True if cols[6] == 'PASS' else False
         if not passed:
-            return None
+            raise NotPassedError(cols[6])
 
         chromosome = cols[0]
         position = int(cols[1])
@@ -141,17 +153,12 @@ def iterate_vcf(vcf, mode: str) -> Iterator[SNV]:
 
     with open(vcf) as f:
         for l in f:
-            if len(l) == 0:
+            try:
+                if mode == '1KGP':
+                    entry = VariationEntry.load_from_1KGP(l)
+                elif mode == '54KJPN':
+                    entry = VariationEntry.load_from_54KJPN(l)
+                for snv in entry.snvs:
+                    yield snv
+            except (NotPassedError, BlankLineError):
                 continue
-            if mode == '1KGP':
-                entry = VariationEntry.load_from_1KGP(l)
-            elif mode == '54KJPN':
-                entry = VariationEntry.load_from_54KJPN(l)
-            else:
-                raise Exception("Illegal mode {}".format(mode))
-            
-            if entry is None: # Quality not passed
-                continue
-            
-            for snv in entry.snvs:
-                yield snv

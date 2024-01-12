@@ -7,6 +7,15 @@ from config import AM_FILENAME
 from vcf import SNV
 from utils import normalized_chromosome
 
+class NoVariationFoundError(Exception):
+    pass
+
+class SubstitutionUnmatchError(Exception):
+    pass
+
+class TranscriptUnmatchError(Exception):
+    pass
+
 def _extract(accessions: List[str], paths: List[str]):
     assert(len(accessions) == len(paths))
 
@@ -40,24 +49,6 @@ def extract(force=False):
     if len(accessions) > 0:
         _extract(accessions, paths)
 
-def _lookup(path, snv: SNV) -> float:
-    with open(path) as f:
-        for l in f:
-            if l.startswith('#'):
-                continue
-            cols = l.strip().split('\t')
-            position = int(cols[1])
-            ref, alt = cols[2], cols[3]
-            uniprot_id, transcript_id = cols[5], cols[6]
-            protein_variant = cols[7]
-            am_pathogenicity, am_class = float(cols[8]), cols[9]
-            
-            if snv.position == position:
-                assert(snv.ref == ref)
-                if snv.alt == alt:
-                    return am_pathogenicity
-    raise Exception("No variation found in AlphaMissense ({}).".format(snv))
-
 def _check_before_lookup(cols: List[str], expected_chromosome: str, expected_uniprot_id: str, expected_transcript_id: str):
     chromosome = normalized_chromosome(cols[0])
     genome = cols[4]
@@ -67,11 +58,12 @@ def _check_before_lookup(cols: List[str], expected_chromosome: str, expected_uni
     assert(chromosome == expected_chromosome)
     assert(uniprot_id == expected_uniprot_id)
     if transcript_id.split('.')[0] != expected_transcript_id: # Remove tailing version from AlphaMissense data
-        raise Exception("AlphaMissense transcipt ID ({}) and Ensembl canonical transcript ID ({}) did not match!".format(transcript_id, expected_transcript_id))
+        raise TranscriptUnmatchError
 
 def _check_after_lookup(cols: List[str], expected_substitution: str):
     substitution = cols[7]
-    assert(substitution == expected_substitution)
+    if substitution != expected_substitution:
+        raise SubstitutionUnmatchError
 
 def lookup(path, snv: SNV, expected_uniprot_id: str, expected_transcript_id: str, expected_substitution: str):
     with open(path) as f:
@@ -90,4 +82,4 @@ def lookup(path, snv: SNV, expected_uniprot_id: str, expected_transcript_id: str
             if snv.position == position and snv.ref == ref and snv.alt == alt:
                 _check_after_lookup(cols, expected_substitution)
                 return am_pathogenicity
-    raise Exception("No variation found in AlphaMissense ({}).".format(snv))
+    raise NoVariationFoundError

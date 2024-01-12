@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-from misc import VCF_JPN_GENE_FILENAME, VCF_JPN_CDS_FILENAME, CSV_JPN_CDS_FILENAME
+from config import *
+import vcf
 import gpcrdb
 import matplotlib
 matplotlib.use('Agg')
@@ -7,30 +8,31 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import os
 from utils import VariationType, Segment
+import ensembl
 
 def analyze_calls():
     num_cds, num_gene = 0, 0
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        dpath = os.path.join(receptor_class, entry_name)
-        print(entry_name)
+        print(receptor.entry_name)
 
         calls_gene = set()
-        with open(os.path.join(dpath, VCF_JPN_GENE_FILENAME)) as f:
+
+        with open(receptor.japan_gene_vcf_path) as f:
             for l in f.readlines():
-                cols = l.split('\t')
-                chromosome = cols[0]
-                position = int(cols[1])
-                calls_gene.add((chromosome, position))
+                try:
+                    var = vcf.VariationEntry.load_from_54KJPN(l)
+                    calls_gene.add((var.chromosome, var.position))
+                except (vcf.NotPassedError, vcf.BlankLineError):
+                    continue
 
         calls_cds = set()
-        with open(os.path.join(dpath, VCF_JPN_CDS_FILENAME)) as f:
+        with open(receptor.japan_cds_vcf_path) as f:
             for l in f.readlines():
-                cols = l.split('\t')
-                chromosome = cols[0]
-                position = int(cols[1])
-                calls_cds.add((chromosome, position))
+                try:
+                    var = vcf.VariationEntry.load_from_54KJPN(l)
+                    calls_cds.add((var.chromosome, var.position))
+                except (vcf.NotPassedError, vcf.BlankLineError):
+                    continue
 
         assert(calls_cds.issubset(calls_gene))
         num_cds += len(calls_cds)
@@ -55,26 +57,18 @@ def analyze_calls():
 def analyze_var_type():
     num_missense, num_silent, num_nonsense = 0, 0, 0
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, CSV_JPN_CDS_FILENAME)) as f:
+        with open(receptor.japan_cds_csv_path) as f:
             for l in f.readlines():
-                if l.startswith('#'):
+                try:
+                    anno = ensembl.Annotation.from_csv_line(l)
+                    if anno.var_type == VariationType.MISSENSE:
+                        num_missense += 1
+                    elif anno.var_type == VariationType.SILENT:
+                        num_silent += 1
+                    elif anno.var_type == VariationType.NONSENSE:
+                        num_nonsense += 1
+                except ensembl.BlankLineError:
                     continue
-                cols = l.split('\t')
-                var_type = cols[0]
-                if var_type == VariationType.MISSENSE.name:
-                    num_missense += 1
-                    continue
-                elif var_type == VariationType.SILENT.name:
-                    num_silent += 1
-                    continue
-                elif var_type == VariationType.NONSENSE.name:
-                    num_nonsense += 1
-                    continue
-                raise Exception("Illegal variation type `{}`".format(var_type))
-    
 
     total = num_missense + num_silent + num_nonsense
     print(total, num_missense, num_silent, num_nonsense)
@@ -158,5 +152,5 @@ def analyze_var_seg():
 
 if __name__ == '__main__':
     analyze_calls()
-    analyze_var_type()
-    analyze_var_seg()
+    #analyze_var_type()
+    #analyze_var_seg()
