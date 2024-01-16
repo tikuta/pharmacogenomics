@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
-import os
+import numpy as np
 from utils import VariationType, Segment
 import ensembl
 
@@ -142,7 +142,35 @@ def analyze_var_seg():
     fig.tight_layout()
     fig.savefig("./figures/1b_var_seg_percent.pdf")
 
+def analyze_segment_ratio():
+    residue_counts = {seg: [] for seg in Segment}
+    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+        counts = {seg: 0 for seg in Segment}
+        with open(receptor.alignment_path) as f:
+            for l in f:
+                if l.startswith('#'):
+                    continue
+                cols = l.split(',')
+                seg = Segment.value_of(cols[1])
+                counts[seg] = counts.get(seg, 0) + 1
+        for seg in residue_counts.keys():
+            residue_counts[seg].append(counts[seg])
+    
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=300)
+    segments = [seg for seg in Segment if seg not in (Segment.NONE, Segment.FailedToGuess)]
+    labels = ["{}\n({})".format(seg.value, np.median(residue_counts[seg])) for seg in segments]
+    bplot = ax.boxplot([residue_counts[seg] for seg in segments], sym='', patch_artist=True, labels=labels)
+    for box, median, seg in zip(bplot['boxes'], bplot['medians'], segments):
+        box.set_facecolor(seg.color)
+        median.set_color('black')
+    ax.set_ylim(bottom=-5)
+    ax.set_ylabel("Number of residues")
+    ax.set_xlabel("Segment\n(median)")
+    fig.tight_layout()
+    fig.savefig("./figures/S1c_residue_count.pdf")
+
 if __name__ == '__main__':
     analyze_calls()
     analyze_var_type()
     analyze_var_seg()
+    analyze_segment_ratio()

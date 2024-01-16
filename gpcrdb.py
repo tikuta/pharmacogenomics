@@ -19,6 +19,7 @@ class GPCRdbEntry:
 
         self.generic_number_path = os.path.join(self.dirpath, "gpcrdb.json")
         self.uniprot_path = os.path.join(self.dirpath, "uniprot.json")
+        self.alignment_path = os.path.join(self.dirpath, "alignment.csv")
         self.japan_gene_vcf_path = os.path.join(self.dirpath, VCF_JPN_GENE_FILENAME)
         self.japan_cds_vcf_path = os.path.join(self.dirpath, VCF_JPN_CDS_FILENAME)
         self.japan_cds_csv_path = os.path.join(self.dirpath, CSV_JPN_CDS_FILENAME)
