@@ -157,7 +157,7 @@ def analyze_segment_ratio():
         for seg in residue_counts.keys():
             residue_counts[seg].append(counts[seg])
     
-    fig, axes = plt.subplots(8, 2, figsize=(8, 8), dpi=300)
+    fig, axes = plt.subplots(8, 2, figsize=(10, 8), dpi=300)
     helices = [seg for seg in Segment if seg.value.startswith('TM') or seg == Segment.H8]
     terms = [Segment.Nterm, Segment.Cterm]
     loops = [Segment.ICL1, Segment.ICL2, Segment.ICL3, Segment.ECL1, Segment.ECL2, Segment.ECL3]
@@ -206,7 +206,7 @@ def analyze_segment_ratio():
     fig.tight_layout()
     fig.savefig("./figures/S1d_residue_count.pdf")
 
-def analyze_gene_lengths():
+def analyze_gene_stats():
     gene_lengths = []
     transcipt_lengths = []
     exon_numbers = []
@@ -233,7 +233,7 @@ def analyze_gene_lengths():
     meanprops = {'markerfacecolor': 'tab:orange', 'markeredgecolor': 'tab:orange', 'marker': '.'}
     flierprops = {'markeredgecolor': 'tab:gray', 'markeredgewidth': 1, 'marker': 'x', 'markersize': 3}
 
-    fig, axes = plt.subplots(4, 1, figsize=(5, 5), dpi=300)
+    fig, axes = plt.subplots(4, 1, figsize=(7, 5), dpi=300)
 
     axes[0].boxplot(gene_lengths, vert=False, patch_artist=True, showmeans=True, 
                medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
@@ -287,10 +287,9 @@ def analyze_gene_lengths():
     fig.tight_layout()
     fig.savefig("./figures/S1b_stats.pdf")
 
-
 if __name__ == '__main__':
     analyze_calls()
     analyze_var_type()
     analyze_var_seg()
-    analyze_gene_lengths()
+    analyze_gene_stats()
     analyze_segment_ratio()

@@ -172,3 +172,6 @@ def primary_coupled_receptors(force=False) -> Dict:
         "promiscuous": list(df_promiscuous['Uniprot']),
         }
     return d
+
+if __name__ == '__main__':
+    print(len(list(get_filtered_receptor_list())))
