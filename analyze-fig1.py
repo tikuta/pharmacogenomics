@@ -40,7 +40,7 @@ def analyze_calls():
 
     ax.barh(0, num_cds, color='tab:orange')
     coding_text = "Coding region\n{:,} calls ({:.1f}%)".format(num_cds, num_cds / num_gene * 100)
-    ax.text(num_cds / 2, 0.45, coding_text, ha='center', va='bottom', size=12)
+    ax.text(num_cds / 2, -0.45, coding_text, ha='center', va='top', size=12)
 
     ax.barh(0, num_gene - num_cds, left=num_cds, color='tab:gray', alpha=0.6)
     non_coding_text = "Non-coding region\n{:,} calls ({:.1f}%)".format(num_gene - num_cds, (num_gene - num_cds) / num_gene * 100)
