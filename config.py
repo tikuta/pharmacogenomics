@@ -51,6 +51,9 @@ BLOCKLIST = (
     'agre4_human', # https://www.uniprot.org/uniprotkb/Q86SQ3/entry
     'agrf2_human', # https://www.uniprot.org/uniprotkb/Q8IZF7/entry
     't2r45_human', # https://useast.ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=ENSG00000261936;r=HSCHR12_2_CTG2:327495-328424;t=ENST00000571573
+    # inconsistent sequences between GPCRdb and Ensembl
+    'gp107_human',
+    'g137a_human',
     # olfactory receptors
     'o51i1_human', 
     'o51e1_human',
