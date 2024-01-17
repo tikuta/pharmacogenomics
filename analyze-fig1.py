@@ -157,18 +157,54 @@ def analyze_segment_ratio():
         for seg in residue_counts.keys():
             residue_counts[seg].append(counts[seg])
     
-    fig, ax = plt.subplots(1, 1, figsize=(8, 5), dpi=300)
-    segments = [seg for seg in Segment if seg not in (Segment.NONE, Segment.FailedToGuess)]
-    labels = ["{}\n({})".format(seg.value, np.median(residue_counts[seg])) for seg in segments]
-    bplot = ax.boxplot([residue_counts[seg] for seg in segments], sym='', patch_artist=True, labels=labels)
-    for box, median, seg in zip(bplot['boxes'], bplot['medians'], segments):
-        box.set_facecolor(seg.color)
-        median.set_color('black')
-    ax.set_ylim(bottom=-5)
-    ax.set_ylabel("Number of residues")
-    ax.set_xlabel("Segment\n(median)")
+    fig, axes = plt.subplots(8, 2, figsize=(8, 8), dpi=300)
+    helices = [seg for seg in Segment if seg.value.startswith('TM') or seg == Segment.H8]
+    terms = [Segment.Nterm, Segment.Cterm]
+    loops = [Segment.ICL1, Segment.ICL2, Segment.ICL3, Segment.ECL1, Segment.ECL2, Segment.ECL3]
+
+    medianprops = {'color': 'black'}
+    meanprops = {'markerfacecolor': 'black', 'markeredgewidth': 0, 'marker': '.', 'markersize': 10}
+    flierprops = {'markeredgecolor': 'black', 'markeredgewidth': 1, 'marker': 'x', 'markersize': 3}
+
+    for ax, seg in zip(axes.T[0], helices):
+        boxprops = {'color': 'black', 'facecolor': seg.color}
+
+        ax.boxplot(residue_counts[seg], patch_artist=True, labels=[seg.value], vert=False, showmeans=True,
+                    medianprops=medianprops, flierprops=flierprops, boxprops=boxprops, meanprops=meanprops)
+        
+        min, median, mean, max = np.min(residue_counts[seg]), np.median(residue_counts[seg]), np.mean(residue_counts[seg]), np.max(residue_counts[seg])
+        ax.text(min, 1, "{:.0f} ".format(min), ha='right', va='center')
+        ax.text(max, 1, " {:.0f}".format(max), ha='left', va='center')
+        ax.text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom')
+        ax.text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top')
+        ax.set_ylim(0.7, 1.3)
+        if seg == Segment.H8:
+            ax.set_xlim(-2, 30)
+        else:
+            ax.set_xlim(18, 62)
+    
+    right_limits = {
+        Segment.Nterm: 7000, Segment.Cterm: 2000, 
+        Segment.ICL1: 17, Segment.ICL2: 27, Segment.ICL3: 240,
+        Segment.ECL1: 67, Segment.ECL2: 200, Segment.ECL3: 33
+    }
+    for ax, seg in zip(axes.T[1], terms + loops):
+        boxprops = {'color': 'black', 'facecolor': seg.color}
+
+        ax.boxplot(residue_counts[seg], patch_artist=True, labels=[seg.value], vert=False, showmeans=True,
+                    medianprops=medianprops, flierprops=flierprops, boxprops=boxprops, meanprops=meanprops)
+        
+        min, median, mean, max = np.min(residue_counts[seg]), np.median(residue_counts[seg]), np.mean(residue_counts[seg]), np.max(residue_counts[seg])
+        ax.text(min, 1, "{:.0f} ".format(min), ha='right', va='center')
+        ax.text(max, 1, " {:.0f}".format(max), ha='left', va='center')
+        ax.text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom')
+        ax.text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top')
+        ax.set_ylim(0.7, 1.3)
+        ax.set_xlim(right=right_limits[seg])
+    axes[-1][0].set_xlabel("Number of residues")
+    axes[-1][1].set_xlabel("Number of residues")
     fig.tight_layout()
-    fig.savefig("./figures/S1c_residue_count.pdf")
+    fig.savefig("./figures/S1d_residue_count.pdf")
 
 def analyze_gene_lengths():
     gene_lengths = []
@@ -195,7 +231,7 @@ def analyze_gene_lengths():
     whisker_cap_props = {'color': 'tab:gray'}
     medianprops = {'color': 'tab:orange'}
     meanprops = {'markerfacecolor': 'tab:orange', 'markeredgecolor': 'tab:orange', 'marker': '.'}
-    flierprops = {'markerfacecolor': 'tab:gray', 'markeredgewidth': 0, 'marker': '.'}
+    flierprops = {'markeredgecolor': 'tab:gray', 'markeredgewidth': 1, 'marker': 'x', 'markersize': 3}
 
     fig, axes = plt.subplots(4, 1, figsize=(5, 5), dpi=300)
 
@@ -256,5 +292,5 @@ if __name__ == '__main__':
     analyze_calls()
     analyze_var_type()
     analyze_var_seg()
-    analyze_segment_ratio()
     analyze_gene_lengths()
+    analyze_segment_ratio()
