@@ -9,6 +9,7 @@ plt.rcParams['font.family'] = "Arial"
 import numpy as np
 from utils import VariationType, Segment
 import ensembl
+import json
 
 def analyze_calls():
     num_cds, num_gene = 0, 0
@@ -169,8 +170,91 @@ def analyze_segment_ratio():
     fig.tight_layout()
     fig.savefig("./figures/S1c_residue_count.pdf")
 
+def analyze_gene_lengths():
+    gene_lengths = []
+    transcipt_lengths = []
+    exon_numbers = []
+    translation_lengths = []
+
+    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+        with open(receptor.ensembl_path) as f:
+            j = json.load(f)
+
+            start = j['start']
+            end = j['end']
+            gene_lengths.append(end - start + 1)
+
+            for transcipt in j['Transcript']:
+                if transcipt['is_canonical'] == 1:
+                    exons = transcipt['Exon']
+                    transcipt_lengths.append(sum([exon['end'] - exon['start'] + 1 for exon in exons]))
+                    exon_numbers.append(len(exons))
+                    translation_lengths.append(transcipt['Translation']['length'])
+
+    boxprops = {'facecolor': 'tab:gray', 'color': 'tab:gray'}
+    whisker_cap_props = {'color': 'tab:gray'}
+    medianprops = {'color': 'tab:orange'}
+    meanprops = {'markerfacecolor': 'tab:orange', 'markeredgecolor': 'tab:orange', 'marker': '.'}
+    flierprops = {'markerfacecolor': 'tab:gray', 'markeredgewidth': 0, 'marker': '.'}
+
+    fig, axes = plt.subplots(4, 1, figsize=(5, 5), dpi=300)
+
+    axes[0].boxplot(gene_lengths, vert=False, patch_artist=True, showmeans=True, 
+               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
+               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
+    min, median, mean, max = np.min(gene_lengths), np.median(gene_lengths), np.mean(gene_lengths), np.max(gene_lengths)
+    axes[0].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
+    axes[0].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
+    axes[0].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
+    axes[0].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')
+    axes[0].set_xlabel("Gene length [nucleotides]")
+    axes[0].set_xscale('log')
+    axes[0].set_xlim(10**2.5, 10**6.5)
+    axes[0].set_yticks([])
+
+    axes[1].boxplot(transcipt_lengths, vert=False, patch_artist=True, showmeans=True, 
+               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
+               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
+    min, median, mean, max = np.min(transcipt_lengths), np.median(transcipt_lengths), np.mean(transcipt_lengths), np.max(transcipt_lengths)
+    axes[1].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
+    axes[1].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
+    axes[1].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
+    axes[1].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')
+    axes[1].set_xlabel("Canonical transcript length [nucleotides]")
+    axes[1].set_xlim(-1000, 23000)
+    axes[1].set_yticks([])
+
+    axes[2].boxplot(exon_numbers, vert=False, patch_artist=True, showmeans=True, 
+               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
+               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
+    min, median, mean, max = np.min(exon_numbers), np.median(exon_numbers), np.mean(exon_numbers), np.max(exon_numbers)
+    axes[2].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
+    axes[2].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
+    axes[2].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
+    axes[2].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')
+    axes[2].set_xlabel("Number of exons")
+    axes[2].set_xlim(-5, 95)
+    axes[2].set_yticks([])
+
+    axes[3].boxplot(translation_lengths, vert=False, patch_artist=True, showmeans=True, 
+               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
+               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
+    min, median, mean, max = np.min(translation_lengths), np.median(translation_lengths), np.mean(translation_lengths), np.max(translation_lengths)
+    axes[3].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
+    axes[3].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
+    axes[3].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
+    axes[3].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')   
+    axes[3].set_xlabel("Canonical translation length [amino acids]")
+    axes[3].set_xlim(-200, 7000)
+    axes[3].set_yticks([])
+
+    fig.tight_layout()
+    fig.savefig("./figures/S1b_stats.pdf")
+
+
 if __name__ == '__main__':
     analyze_calls()
     analyze_var_type()
     analyze_var_seg()
     analyze_segment_ratio()
+    analyze_gene_lengths()
