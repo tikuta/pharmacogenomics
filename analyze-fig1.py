@@ -135,8 +135,12 @@ def analyze_var_seg():
         width = seg_nonsense.get(seg.value, 0) / total_nonsense * 100
         ax.barh(0, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
         left += width
+    num_loss_of_function = sum([seg_nonsense.get(seg.value, 0) for seg in Segment if seg not in (Segment.H8, Segment.Cterm)])
+    ratio_loss_of_function = num_loss_of_function / total_nonsense * 100
+    ax.plot([0, ratio_loss_of_function], [-0.45, -0.45], lw=1, color='tab:gray')
+    ax.text(ratio_loss_of_function / 2, -0.5, "{:.1f}%".format(ratio_loss_of_function), ha='center', va='top', size=6, color='tab:gray')
 
-    ax.set_ylim(-0.5, 2.7)
+    ax.set_ylim(-0.75, 2.7)
     ax.set_yticks(range(3))
     ax.set_yticklabels(["Nonsense", "Silent", "Missense"])
     ax.set_xlabel("SNVs [%]")
