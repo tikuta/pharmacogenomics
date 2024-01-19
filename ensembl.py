@@ -456,9 +456,10 @@ class Annotation:
                   int(cols[13]), int(cols[14]), float(cols[15]))
         
         pathogenicity = None if cols[16] == 'None' else float(cols[16])
+        generic_number = None if cols[12] == 'None' else cols[12]
 
         return cls(VariationType.name_of(cols[0]), snv, cols[6], cols[9], int(cols[4]),
-                   Segment.value_of(cols[11]), cols[12], pathogenicity)
+                   Segment.value_of(cols[11]), generic_number, pathogenicity)
 
     @classmethod
     def header(cls) -> str:
