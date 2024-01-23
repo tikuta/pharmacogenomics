@@ -231,62 +231,44 @@ def analyze_gene_stats():
                     exon_numbers.append(len(exons))
                     translation_lengths.append(transcipt['Translation']['length'])
 
-    boxprops = {'facecolor': 'tab:gray', 'color': 'tab:gray'}
-    whisker_cap_props = {'color': 'tab:gray'}
-    medianprops = {'color': 'tab:orange'}
-    meanprops = {'markerfacecolor': 'tab:orange', 'markeredgecolor': 'tab:orange', 'marker': '.'}
-    flierprops = {'markeredgecolor': 'tab:gray', 'markeredgewidth': 1, 'marker': 'x', 'markersize': 3}
+    fig, axes = plt.subplots(2, 2, figsize=(7, 5), dpi=300)
+    
+    nbins, _, _ = axes[0][0].hist(np.log10(gene_lengths), bins=40, color='tab:gray')
+    axes[0][0].set_xlabel("Gene length [nucleotides]")
+    xrange = np.arange(3, 7)
+    axes[0][0].set_xticks(xrange)
+    axes[0][0].set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
+    median = np.median(gene_lengths)
+    axes[0][0].axvline(np.log10(median), color='tab:orange')
+    axes[0][0].text(np.log10(median), np.max(nbins), f"{median:.0f} ", color='tab:orange', ha='right', va='center')
+    axes[0][0].set_ylabel("Number of GPCRs")
 
-    fig, axes = plt.subplots(4, 1, figsize=(7, 5), dpi=300)
+    nbins, _, _ = axes[1][0].hist(np.log10(transcipt_lengths), bins=40, color='tab:gray')
+    axes[1][0].set_xlabel("Canonical transcript length [nucleotides]")
+    xrange = np.arange(3, 4.5, 0.25)
+    axes[1][0].set_xticks(xrange)
+    axes[1][0].set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
+    median = np.median(transcipt_lengths)
+    axes[1][0].axvline(np.log10(median), color='tab:orange')
+    axes[1][0].text(np.log10(median), np.max(nbins), f" {median:.0f}", color='tab:orange', ha='left', va='center')
+    axes[1][0].set_ylabel("Number of GPCRs")
 
-    axes[0].boxplot(gene_lengths, vert=False, patch_artist=True, showmeans=True, 
-               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
-               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
-    min, median, mean, max = np.min(gene_lengths), np.median(gene_lengths), np.mean(gene_lengths), np.max(gene_lengths)
-    axes[0].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
-    axes[0].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
-    axes[0].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
-    axes[0].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')
-    axes[0].set_xlabel("Gene length [nucleotides]")
-    axes[0].set_xscale('log')
-    axes[0].set_xlim(10**2.5, 10**6.5)
-    axes[0].set_yticks([])
-
-    axes[1].boxplot(transcipt_lengths, vert=False, patch_artist=True, showmeans=True, 
-               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
-               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
-    min, median, mean, max = np.min(transcipt_lengths), np.median(transcipt_lengths), np.mean(transcipt_lengths), np.max(transcipt_lengths)
-    axes[1].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
-    axes[1].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
-    axes[1].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
-    axes[1].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')
-    axes[1].set_xlabel("Canonical transcript length [nucleotides]")
-    axes[1].set_xlim(-1000, 23000)
-    axes[1].set_yticks([])
-
-    axes[2].boxplot(exon_numbers, vert=False, patch_artist=True, showmeans=True, 
-               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
-               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
-    min, median, mean, max = np.min(exon_numbers), np.median(exon_numbers), np.mean(exon_numbers), np.max(exon_numbers)
-    axes[2].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
-    axes[2].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
-    axes[2].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
-    axes[2].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')
-    axes[2].set_xlabel("Number of exons")
-    axes[2].set_xlim(-5, 95)
-    axes[2].set_yticks([])
-
-    axes[3].boxplot(translation_lengths, vert=False, patch_artist=True, showmeans=True, 
-               medianprops=medianprops, meanprops=meanprops, boxprops=boxprops, 
-               whiskerprops=whisker_cap_props, capprops=whisker_cap_props, flierprops=flierprops)
-    min, median, mean, max = np.min(translation_lengths), np.median(translation_lengths), np.mean(translation_lengths), np.max(translation_lengths)
-    axes[3].text(min, 1, "{:.0f} ".format(min), ha='right', va='center', color='tab:gray')
-    axes[3].text(max, 1, " {:.0f}".format(max), ha='left', va='center', color='tab:gray')
-    axes[3].text(median, 1.1, "{:.1f}".format(median), ha='center', va='bottom', color='tab:orange')
-    axes[3].text(mean, 0.85, "{:.1f}".format(mean), ha='center', va='top', color='tab:orange')   
-    axes[3].set_xlabel("Canonical translation length [amino acids]")
-    axes[3].set_xlim(-200, 7000)
-    axes[3].set_yticks([])
+    nbins, _, _ = axes[0][1].hist(exon_numbers, bins=20, color='tab:gray')
+    axes[0][1].set_xlabel("Number of exons")
+    median = np.median(exon_numbers)
+    axes[0][1].axvline(median, color='tab:orange')
+    axes[0][1].text(np.log10(median), np.max(nbins), f"    {median:.0f}", color='tab:orange', ha='left', va='center')
+    axes[0][1].set_yscale('log')
+    
+    nbins, _, _ = axes[1][1].hist(np.log10(translation_lengths), bins=20, color='tab:gray')
+    axes[1][1].set_xlabel("Canonical translation length [amino acids]")
+    xrange = np.arange(2.5, 4, 0.25)
+    axes[1][1].set_xticks(xrange)
+    axes[1][1].set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
+    median = np.median(translation_lengths)
+    axes[1][1].axvline(np.log10(median), color='tab:orange')
+    axes[1][1].text(np.log10(median), np.max(nbins), f" {median:.0f}", color='tab:orange', ha='left', va='center')
+    axes[1][1].set_yscale('log')
 
     fig.tight_layout()
     fig.savefig("./figures/S1b_stats.pdf")
