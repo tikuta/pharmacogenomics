@@ -44,6 +44,22 @@ class Segment(enum.Enum):
         for i, seg in enumerate(Segment):
             if seg == self:
                 return i
+            
+    @classmethod
+    def terms(cls):
+        return [cls.Nterm, cls.Cterm]
+    
+    @classmethod
+    def TMs(cls):
+        return [cls.TM1, cls.TM2, cls.TM3, cls.TM4, cls.TM5, cls.TM6, cls.TM7]
+    
+    @classmethod
+    def ICLs(cls):
+        return [cls.ICL1, cls.ICL2, cls.ICL3, cls.ICL4]
+    
+    @classmethod
+    def ECLs(cls):
+        return [cls.ECL1, cls.ECL2, cls.ECL3]
     
     @classmethod
     def value_of(cls, target):
