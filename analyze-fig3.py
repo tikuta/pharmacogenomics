@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import ensembl
 from utils import VariationType, Segment
+import json
+import config
 
 def analyze_positions():
     assigned = {}
@@ -76,5 +78,66 @@ def analyze_positions():
     fig.tight_layout()
     fig.savefig("./figures/3a_positions.pdf")
 
+def analyze_arginine_3x50():
+    roi = "3x50"
+
+    aa_stats = {}
+    codon_stats = {}
+    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+        if receptor.receptor_class != 'Class A (Rhodopsin)':
+            continue
+
+        with open(receptor.alignment_path) as f:
+            for l in f:
+                if l.startswith('#'):
+                    continue
+
+                cols = l.strip().split(',')
+                residue, generic_number = cols[0], cols[2]
+                structure_based_number = generic_number.split('.')[0] + 'x' + generic_number.split('x')[-1]
+
+                if structure_based_number == roi:
+                    aa = residue[0]
+                    aa_stats[aa] = aa_stats.get(aa, 0) + 1
+
+                    res_num = int(residue[1:])
+
+                    if aa == 'R':
+                        with open(receptor.cds_path) as j:
+                            codon = json.load(j)['canonical_cds'][res_num * 3 - 3: res_num * 3]
+                            codon_stats[codon] = codon_stats.get(codon, 0) + 1
+    
+    fig, ax = plt.subplots(1, 1, figsize=(6, 2), dpi=300)
+
+    left = 0
+    for aa in sorted(aa_stats.keys(), key=lambda aa:aa_stats[aa], reverse=True):
+        delta = aa_stats[aa]
+        ax.barh(1, delta, left=left, color=config.AA2COLOR[aa], linewidth=0.5, edgecolor='k')
+        if aa == "R":
+            ax.text(left + delta / 2, 1, "Arg\n({})".format(delta), ha='center', va='center', size=6)
+        left += delta
+    total = left
+    
+    left = 0
+    for codon in sorted(codon_stats.keys(), key=lambda codon: ('CG' not in codon, -codon_stats[codon])):
+        delta = codon_stats[codon]
+        ax.barh(0, delta, left=left, linewidth=0.5, edgecolor='k')
+        ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center', size=6)
+        left += delta
+    cpg = sum([v for k, v in codon_stats.items() if 'CG' in k])
+
+    ax.set_xlim(0, total)
+    ax.set_xticks([0, 50, 100, 150, 200, 250, total])
+    ax.set_xticklabels([0, 50, 100, 150, 200, 250, total])
+    ax.set_xlabel("Number of family A GPCRs")
+
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(['Codon', 'Amino acid'])
+    ax.set_ylabel("3x50")
+    
+    fig.tight_layout()
+    fig.savefig("./figures/S3a_arginine_3x50.pdf")
+
 if __name__ == '__main__':
     analyze_positions()
+    analyze_arginine_3x50()

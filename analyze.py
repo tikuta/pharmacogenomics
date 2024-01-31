@@ -13,65 +13,6 @@ import numpy as np
 import sys
 
 
-def plot_arginine_3x50(aa_stats: Dict, codon_stats: Dict):
-    fig, axes = plt.subplots(2, 1, figsize=(8, 2), dpi=300, sharex=True)
-
-    ax = axes[0]
-    aas = list(aa_stats.keys())
-    aas.sort(key=lambda aa: (aa != 'Unassigned', aa_stats[aa]))
-    left = 0
-    for aa in aas[::-1]:
-        delta = aa_stats[aa]
-        print(aa, delta)
-        ax.barh(0, delta, left=left, color=AA2COLOR.get(aa, 'tab:gray'), linewidth=0.5, edgecolor='k')
-        if aa == "R":
-            ax.text(left + delta / 2, 0, "{}\n({})".format(aa, delta), ha='center', va='center')
-        left += delta
-    ax.set_axis_off()
-
-    ax = axes[1]
-    codons = list(codon_stats.keys())
-    codons.sort(key=lambda codon: codon_stats[codon])
-    left = 0
-    for codon in codons[::-1]:
-        delta = codon_stats[codon]
-        print(codon, delta)
-        ax.barh(0, delta, left=left, linewidth=0.5, edgecolor='k')
-        y, va = 0.45 if delta < 20 else 0, 'bottom' if delta < 20 else 'center'
-        ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center')
-        left += delta
-    ax.set_axis_off()
-
-    fig.tight_layout()
-    fig.savefig("arginine_3x50.pdf")
-
-def analyze_arginine_3x50() -> List[Dict]:
-    aa_stats = {}
-    codon_stats = {}
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
-        entry_name = receptor['entry_name']
-        receptor_class = receptor['receptor_class']
-        if receptor_class != 'Class A (Rhodopsin)':
-            continue
-
-        dpath = os.path.join(receptor_class, entry_name)
-        with open(os.path.join(dpath, 'match.json')) as f:
-            residues = json.load(f)['residues']
-            g_nums = {r['generic_number']: r['ensembl_amino_acid'] for r in residues if r['generic_number'] is not None}
-            res_nums = {r['generic_number']: r['ensembl_sequence_number'] for r in residues if r['generic_number'] is not None}
-
-            roi = "3.50"
-            aa = g_nums.get(roi, "Unassigned")
-            aa_stats[aa] = aa_stats.get(aa, 0) + 1
-
-            if aa == 'R':
-                with open(os.path.join(dpath, 'cds.json')) as f:
-                    cds = json.load(f)
-                res_num = res_nums[roi]
-                codon = cds['nucleotides'][res_num * 3 - 3: res_num * 3]
-                codon_stats[codon] = codon_stats.get(codon, 0) + 1
-    return aa_stats, codon_stats
-
 def plot_G_protein_common_contact_positions(vars: Dict):
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), dpi=300, sharex=True, sharey=True)
     af_values = np.array([[vars[receptor][gnum][0] for gnum in vars[receptor].keys()] for receptor in vars.keys()]).flatten()
