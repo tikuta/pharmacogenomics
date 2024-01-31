@@ -70,7 +70,10 @@ class Segment(enum.Enum):
 
     @classmethod
     def generic_number_of(cls, g_num):
-        seg = int(g_num.split('.')[0])
+        if '.' in g_num:
+            seg = int(g_num.split('.')[0])
+        elif 'x' in g_num:
+            seg = int(g_num.split('x')[0])
         if 1 <= seg <= 7:
             return cls.value_of("TM" + str(seg))
         elif seg == 8:
