@@ -113,9 +113,10 @@ def _is_N_glycosylation_motif(triplet):
         return True
     return False
 
-def analyze_Nter_glycosylation():
+def analyze_terminal_regions():
     n_glyco_gain, n_glyco_loss = [], []
     o_glyco_gain, o_glyco_loss = [], []
+    phospho_gain, phospho_loss = [], []
     for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
         with open(receptor.ensembl_path) as f:
             display_name = json.load(f)['display_name']
@@ -124,85 +125,94 @@ def analyze_Nter_glycosylation():
         with open(receptor.japan_cds_csv_path) as f:
             for l in f:
                 try:
-                    anno = ensembl.Annotation.from_csv_line(l)
-                    if anno.segment != Segment.Nterm:
-                        continue
-                    if anno.var_type != VariationType.MISSENSE:
-                        continue
-                    if anno.snv.AF <= 0.5:
-                        continue
+                    anno = ensembl.Annotation.from_csv_line(l)  
                 except ensembl.BlankLineError:
                     continue
-
+                
+                if anno.var_type != VariationType.MISSENSE:
+                    continue
+                if anno.snv.AF <= 0.5:
+                    continue
                 assert(seq[anno.residue_number - 1] == anno.ref_aa)
                 
-                # N-glycosylation
-                if 0 <= anno.residue_number - 3 and anno.residue_number <= len(seq):
-                    ref_leading_triplet = seq[anno.residue_number - 3:anno.residue_number]
-                    alt_leading_triplet = ref_leading_triplet[0] + ref_leading_triplet[1]+ anno.alt_aa
+                # Check glycosylation
+                if anno.segment == Segment.Nterm:    
+                    # N-glycosylation
+                    if 0 <= anno.residue_number - 3 and anno.residue_number <= len(seq):
+                        ref_leading_triplet = seq[anno.residue_number - 3:anno.residue_number]
+                        alt_leading_triplet = ref_leading_triplet[0] + ref_leading_triplet[1]+ anno.alt_aa
 
-                    if _is_N_glycosylation_motif(ref_leading_triplet) != _is_N_glycosylation_motif(alt_leading_triplet):
-                        if _is_N_glycosylation_motif(ref_leading_triplet):
-                            # Loss
-                            n_glyco_loss.append({"display_name": display_name, "annotation": anno, 
-                                                "ref_motif": ref_leading_triplet, "alt_motif": alt_leading_triplet})
-                        else:
-                            # Gain
-                            n_glyco_gain.append({"display_name": display_name, "annotation": anno,
-                                                "ref_motif": ref_leading_triplet, "alt_motif": alt_leading_triplet})
+                        if _is_N_glycosylation_motif(ref_leading_triplet) != _is_N_glycosylation_motif(alt_leading_triplet):
+                            if _is_N_glycosylation_motif(ref_leading_triplet):
+                                # Loss
+                                n_glyco_loss.append({"display_name": display_name, "annotation": anno, 
+                                                    "ref_motif": ref_leading_triplet, "alt_motif": alt_leading_triplet})
+                            else:
+                                # Gain
+                                n_glyco_gain.append({"display_name": display_name, "annotation": anno,
+                                                    "ref_motif": ref_leading_triplet, "alt_motif": alt_leading_triplet})
 
-                if 0 <= anno.residue_number - 2 and anno.residue_number + 1 <= len(seq):
-                    ref_midmost_triplet = seq[anno.residue_number - 2:anno.residue_number + 1]
-                    alt_midmost_triplet = ref_midmost_triplet[0] + anno.alt_aa + ref_midmost_triplet[2]
+                    if 0 <= anno.residue_number - 2 and anno.residue_number + 1 <= len(seq):
+                        ref_midmost_triplet = seq[anno.residue_number - 2:anno.residue_number + 1]
+                        alt_midmost_triplet = ref_midmost_triplet[0] + anno.alt_aa + ref_midmost_triplet[2]
 
-                    if _is_N_glycosylation_motif(ref_midmost_triplet) != _is_N_glycosylation_motif(alt_midmost_triplet):
-                        if _is_N_glycosylation_motif(ref_midmost_triplet):
-                            # Loss
-                            n_glyco_loss.append({"display_name": display_name, "annotation": anno,
-                                                "ref_motif": ref_midmost_triplet, "alt_motif": alt_midmost_triplet})
-                        else:
-                            # Gain
-                            n_glyco_gain.append({"display_name": display_name, "annotation": anno,
-                                                "ref_motif": ref_midmost_triplet, "alt_motif": alt_midmost_triplet})
+                        if _is_N_glycosylation_motif(ref_midmost_triplet) != _is_N_glycosylation_motif(alt_midmost_triplet):
+                            if _is_N_glycosylation_motif(ref_midmost_triplet):
+                                # Loss
+                                n_glyco_loss.append({"display_name": display_name, "annotation": anno,
+                                                    "ref_motif": ref_midmost_triplet, "alt_motif": alt_midmost_triplet})
+                            else:
+                                # Gain
+                                n_glyco_gain.append({"display_name": display_name, "annotation": anno,
+                                                    "ref_motif": ref_midmost_triplet, "alt_motif": alt_midmost_triplet})
 
-                if 0 <= anno.residue_number - 1 and anno.residue_number + 2 <= len(seq):
-                    ref_tailing_triplet = seq[anno.residue_number - 1:anno.residue_number + 2]
-                    alt_tailing_triplet = anno.alt_aa + ref_tailing_triplet[1] + ref_tailing_triplet[2]
+                    if 0 <= anno.residue_number - 1 and anno.residue_number + 2 <= len(seq):
+                        ref_tailing_triplet = seq[anno.residue_number - 1:anno.residue_number + 2]
+                        alt_tailing_triplet = anno.alt_aa + ref_tailing_triplet[1] + ref_tailing_triplet[2]
 
-                    if _is_N_glycosylation_motif(ref_tailing_triplet) != _is_N_glycosylation_motif(alt_tailing_triplet):
-                        if _is_N_glycosylation_motif(ref_tailing_triplet):
-                            # Loss
-                            n_glyco_loss.append({"display_name": display_name, "annotation": anno,
-                                                "ref_motif": ref_tailing_triplet, "alt_motif": alt_tailing_triplet})
-                        else:
-                            # Gain
-                            n_glyco_gain.append({"display_name": display_name, "annotation": anno,
-                                                "ref_motif": ref_tailing_triplet, "alt_motif": alt_tailing_triplet})
-
-                # O-glycosylation
-                if anno.ref_aa in 'ST' and anno.alt_aa not in 'ST':
-                    # Loss
-                    o_glyco_loss.append({"display_name": display_name, "annotation": anno})
-                elif anno.ref_aa not in 'ST' and anno.alt_aa in 'ST':
-                    # Gain
-                    o_glyco_gain.append({"display_name": display_name, "annotation": anno})
-
+                        if _is_N_glycosylation_motif(ref_tailing_triplet) != _is_N_glycosylation_motif(alt_tailing_triplet):
+                            if _is_N_glycosylation_motif(ref_tailing_triplet):
+                                # Loss
+                                n_glyco_loss.append({"display_name": display_name, "annotation": anno,
+                                                    "ref_motif": ref_tailing_triplet, "alt_motif": alt_tailing_triplet})
+                            else:
+                                # Gain
+                                n_glyco_gain.append({"display_name": display_name, "annotation": anno,
+                                                    "ref_motif": ref_tailing_triplet, "alt_motif": alt_tailing_triplet})
+                    # O-glycosylation
+                    if anno.ref_aa in 'ST' and anno.alt_aa not in 'ST':
+                        # Loss
+                        o_glyco_loss.append({"display_name": display_name, "annotation": anno})
+                    elif anno.ref_aa not in 'ST' and anno.alt_aa in 'ST':
+                        # Gain
+                        o_glyco_gain.append({"display_name": display_name, "annotation": anno})
+                # Check phosphorylation
+                if anno.segment == Segment.Cterm:
+                    if anno.ref_aa in 'ST' and anno.alt_aa not in 'ST':
+                        # Loss
+                        phospho_loss.append({"display_name": display_name, "annotation": anno})
+                    elif anno.ref_aa not in 'ST' and anno.alt_aa in 'ST':
+                        # Gain
+                        phospho_gain.append({"display_name": display_name, "annotation": anno})
     n_glyco_gain.sort(key=lambda d: d['annotation'].snv.AF)
     n_glyco_loss.sort(key=lambda d: d['annotation'].snv.AF)
     o_glyco_gain.sort(key=lambda d: d['annotation'].snv.AF)
     o_glyco_loss.sort(key=lambda d: d['annotation'].snv.AF)
+    phospho_gain.sort(key=lambda d: d['annotation'].snv.AF)
+    phospho_loss.sort(key=lambda d: d['annotation'].snv.AF)
 
-    fig, axes = plt.subplots(2, 1, figsize=(4, 4), dpi=300, sharex=True, sharey=True)
+    fig, axes = plt.subplots(3, 1, figsize=(4, 6), dpi=300, sharex=True, sharey=True)
+    for ax in axes:
+        ax.set_facecolor('whitesmoke')
+        ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9, 1])
+        ax.set_yticklabels([0.5, 0.6, 0.7, 0.8, 0.9, 1])
+        ax.set_ylabel("Allele Freq.")
 
     ax = axes[0]
-    ax.set_facecolor('whitesmoke')
     n_glyco = [[d['annotation'].snv.AF for d in n_glyco_gain], [d['annotation'].snv.AF for d in n_glyco_loss]]
     ax.hist(n_glyco, bins=10, range=(0.5, 1), stacked=True, label=["Gain", "Loss"], orientation='horizontal',
             color=[Segment.Nterm.color, 'white'], edgecolor=Segment.Nterm.color)
-    ax.set_title("N-glycosylation motif")
-    ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9, 1])
-    ax.set_yticklabels([0.5, 0.6, 0.7, 0.8, 0.9, 1])
-    ax.set_ylabel("Allele Freq.")
+    ax.set_title("N-glycosylation (Asn-X-Ser/Thr)") 
     for glyco in n_glyco_gain + n_glyco_loss:
         anno = glyco['annotation']
         label = "{} {}{}{} ({}$\\rightarrow${})".format(glyco['display_name'], anno.ref_aa, anno.residue_number, anno.alt_aa,
@@ -211,24 +221,27 @@ def analyze_Nter_glycosylation():
         for r in ranges:
             if r[0] < anno.snv.AF <= r[1]:
                 ax.text(1, (r[0] + r[1]) / 2, " " + label, ha='left', va='center', size=9)
-    ax.legend(loc='lower center', ncol=2)
+    ax.legend(loc='lower right', ncol=2)
 
     ax = axes[1]
-    ax.set_facecolor('whitesmoke')
     o_glyco = [[d['annotation'].snv.AF for d in o_glyco_gain], [d['annotation'].snv.AF for d in o_glyco_loss]]
     ax.hist(o_glyco, bins=10, range=(0.5, 1), stacked=True, label=["Gain", "Loss"], orientation='horizontal',
             color=[Segment.Nterm.color, 'white'], edgecolor=Segment.Nterm.color)
-    ax.set_title("O-glycosylation")
-    ax.set_yticks([0.5, 0.6, 0.7, 0.8, 0.9, 1])
-    ax.set_yticklabels([0.5, 0.6, 0.7, 0.8, 0.9, 1])
-    ax.set_ylabel("Allele Freq.")
+    ax.set_title("O-glycosylation (Ser/Thr)")
+    
+    ax = axes[2]
+    phospho = [[d['annotation'].snv.AF for d in phospho_gain], [d['annotation'].snv.AF for d in phospho_loss]]
+    ax.hist(phospho, bins=10, range=(0.5, 1), stacked=True, label=["Gain", "Loss"], orientation='horizontal',
+            color=[Segment.Cterm.color, 'white'], edgecolor=Segment.Cterm.color)
+    ax.set_title("Phosphorylation (Ser/Thr)")
+    ax.legend(loc='lower right', ncol=2)
     ax.set_xticks(range(5))
     ax.set_xticklabels(range(5))
     ax.set_xlabel("Number of Variants")
 
     fig.tight_layout()    
-    fig.savefig("./figures/2c_glyco.pdf")
+    fig.savefig("./figures/2c_term.pdf")
 
 if __name__ == '__main__':
     analyze_high_allele_freq_vars()
-    analyze_Nter_glycosylation()
+    analyze_terminal_regions()
