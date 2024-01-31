@@ -242,6 +242,76 @@ def analyze_terminal_regions():
     fig.tight_layout()    
     fig.savefig("./figures/2c_term.pdf")
 
+def analyze_nonterminal_regions():
+    nonterminal = []
+    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+        # Generic number system is consistent only within the same class.
+        if receptor.receptor_class != 'Class A (Rhodopsin)':
+            continue
+
+        with open(receptor.ensembl_path) as f:
+            display_name = json.load(f)['display_name']
+        with open(receptor.alignment_path) as f:
+            seq = ''.join([l.split(',')[0][0] for l in f if not l.startswith('#')])
+        with open(receptor.japan_cds_csv_path) as f:
+            for l in f:
+                try:
+                    anno = ensembl.Annotation.from_csv_line(l)  
+                except ensembl.BlankLineError:
+                    continue
+                
+                if anno.var_type != VariationType.MISSENSE:
+                    continue
+                if anno.snv.AF <= 0.5:
+                    continue
+                if anno.segment == Segment.Nterm or anno.segment == Segment.Cterm:
+                    continue
+
+                assert(seq[anno.residue_number - 1] == anno.ref_aa)
+                nonterminal.append({"display_name": display_name, "annotation": anno})
+    # A.BxC, in many case, B = C
+    generic_numbers = set(d['annotation'].generic_number for d in nonterminal if d['annotation'].generic_number)
+    # AxC
+    structure_based_numbers = set(n.split('.')[0] + 'x' + n.split('x')[-1] for n in generic_numbers)
+    
+    # Look up these residues in ADRB2
+    residues = []
+    gen_nums = []
+    colors = []
+    adrb2 = gpcrdb.GPCRdbEntry('adrb2_human', 'P07550', 'Class A (Rhodopsin)', force=False)
+    with open(adrb2.alignment_path) as f:
+        for l in f:
+            if l.startswith('#'):
+                continue
+            cols = l.strip().split(',')
+            generic_number = cols[2]
+            if generic_number == 'None':
+                continue
+            structure_based_number = generic_number.split('.')[0] + 'x' + generic_number.split('x')[-1]
+            if structure_based_number in structure_based_numbers:
+                residues.append(cols[0])
+                gen_nums.append(generic_number)
+                rgba = Segment.value_of(cols[1]).color
+                colors.append("0x{:02x}{:02x}{:02x}".format(int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255)))
+                print("{} ({})".format(cols[0], structure_based_number))
+
+    # Write PyMOL commands
+    commands = ["fetch 3sn6R", "hide everything", "show cartoon, resi 1-400", "color gray50, elem C", "bg_color white"]
+    commands.append("""set_view (\
+     0.995574713,    0.004649362,   -0.093772046,\
+     0.093761533,    0.002609347,    0.995587170,\
+     0.004873949,   -0.999971628,    0.002162045,\
+    -0.000329998,    0.000011437, -200.369766235,\
+    19.015455246,   12.105808258,    5.394354820,\
+   162.227340698,  238.521606445,  -20.000000000 )""")
+    for r, c, gn in zip(residues, colors, gen_nums):
+        commands.append("select {}_{}, resi {}".format(r, gn, r[1:]))
+        commands.append("show spheres, {} and name CA".format(r))
+        commands.append("color {}, {} and name CA".format(c, r))
+    with open("./figures/2f_pymol_commands.pml", 'w') as f:
+        f.write('\n'.join(commands))
+
 if __name__ == '__main__':
     analyze_high_allele_freq_vars()
     analyze_terminal_regions()
+    analyze_nonterminal_regions()

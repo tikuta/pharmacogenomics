@@ -1,6 +1,7 @@
 *.pdf
 __pycache__/
 data/
+figures/
 Class */
 Other GPCRs/
 receptors.json
