@@ -55,15 +55,14 @@ def analyze_positions():
         for gn in missense:
             found[gn] = found.get(gn, 0) + 1
 
-    f = lambda gn: (int(gn.split('x')[0]) if int(gn.split('x')[0]) > 10 else int(gn.split('x')[0]) * 10, int(gn.split('x')[1]))
-    generic_numbers = sorted(assigned.keys(), key=f)
+    generic_numbers = sorted(assigned.keys(), key=lambda gn:Segment.generic_number_of(gn).index)
 
     fig, ax = plt.subplots(1, 1, figsize=(4, 10), dpi=300)
     ax.invert_yaxis()
     
     for y, gn in enumerate(generic_numbers):
         color = Segment.generic_number_of(gn).color
-        ax.barh(y, assigned[gn], color='tab:gray', height=1, zorder=-200)
+        ax.barh(y, assigned[gn], color='lightgray', height=1, zorder=-200)
         ax.barh(y, found.get(gn, 0), color=color, height=1, zorder=-100)
 
     ax.set_ylim(len(assigned), -1)
@@ -124,7 +123,6 @@ def analyze_arginine_3x50():
         ax.barh(0, delta, left=left, linewidth=0.5, edgecolor='k')
         ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center', size=6)
         left += delta
-    cpg = sum([v for k, v in codon_stats.items() if 'CG' in k])
 
     ax.set_xlim(0, total)
     ax.set_xticks([0, 50, 100, 150, 200, 250, total])
@@ -138,6 +136,97 @@ def analyze_arginine_3x50():
     fig.tight_layout()
     fig.savefig("./figures/S3a_arginine_3x50.pdf")
 
+def visualize_G_protein_contact_positions():
+    # See the following reference for detail
+    # https://doi.org/10.1038/s41467-022-34055-5
+    common_residues = {"3x50", "3x53", "3x54", "34x50", "34x51", "34x55", "5x65", "5x68", "6x32", "6x33", "6x36", "6x37", "7x56", "8x47"}
+    gs_residues = common_residues | {"3x54", "3x55", "34x51", "34x54", "34x55", "5x64", "5x68", "5x69", "5x71", "5x72", "5x74", "5x75", "5x77", "8x48"}
+    gi_residues = common_residues | {"12x49", "2x40", "3x50", "3x53", "34x52", "34x55", "5x71", "6x32", "7x56", "8x47", "8x49"}
+    gq_residues = common_residues | {"2x37", "2x39", "2x40", "3x49", "34x51", "34x53", "34x55", "34x56", "34x57", "4x38", "4x39", "6x30", "6x33", "8x48", "8x49"}
+
+    roi = gs_residues | gi_residues | gq_residues
+    gs_gi_gq = gs_residues & gi_residues & gq_residues
+    gs = gs_residues - gi_residues - gq_residues
+    gi = gi_residues - gs_residues - gq_residues
+    gq = gq_residues - gs_residues - gi_residues
+    gs_gi = gs_residues & gi_residues - gq_residues
+    gi_gq = gi_residues & gq_residues - gs_residues
+    gq_gs = gq_residues & gs_residues - gi_residues
+
+    print("All", " ".join(sorted(list(roi), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Common (gray)", " ".join(sorted(list(gs_gi_gq), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Gs (cyan)", " ".join(sorted(list(gs), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Gi (magenta)", " ".join(sorted(list(gi), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Gq (yellow)", " ".join(sorted(list(gq), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Gs^Gi (blue)", " ".join(sorted(list(gs_gi), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Gi^Gq (red)", " ".join(sorted(list(gi_gq), key=lambda gn: Segment.generic_number_of(gn).index)))
+    print("Gq^Gs (green)", " ".join(sorted(list(gq_gs), key=lambda gn: Segment.generic_number_of(gn).index)))
+
+    # Look up these residues in ADRB2
+    residues = []
+    gen_nums = []
+    adrb2 = gpcrdb.GPCRdbEntry('adrb2_human', 'P07550', 'Class A (Rhodopsin)', force=False)
+    with open(adrb2.alignment_path) as f:
+        for l in f:
+            if l.startswith('#'):
+                continue
+            cols = l.strip().split(',')
+            generic_number = cols[2]
+            if generic_number == 'None':
+                continue
+            structure_based_number = generic_number.split('.')[0] + 'x' + generic_number.split('x')[-1]
+            if structure_based_number in roi:
+                residues.append(cols[0])
+                gen_nums.append(generic_number)
+
+    # Write PyMOL commands
+    commands = ["fetch 3sn6", "hide everything", "show cartoon, (chain R and resi 1-400) or chain A",
+                "color gray90, chain R and elem C", "color lightorange, chain A and elem C", "bg_color white"]
+
+    for r, gen_num in zip(residues, gen_nums):
+        commands.append("select {}_{}, chain R and resi {}".format(r, gen_num, r[1:]))
+        commands.append("show spheres, {} and name CA".format(r))
+        gn = gen_num.split('.')[0] + 'x' + gen_num.split('x')[-1]
+        # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
+        color = None
+        if gn in gs_gi_gq:
+            color = "gray50"
+        elif gn in gs_gi:
+            color = "blue"
+        elif gn in gi_gq:
+            color = "red"
+        elif gn in gq_gs:
+            color = "green"
+        elif gn in gs:
+            color = "cyan"
+        elif gn in gi:
+            color = "magenta"
+        elif gn in gq:
+            color = "yellow"
+        commands.append("color {}, {} and name CA".format(color, r))
+
+    commands.append("""set_view (\
+     0.945073068,   -0.057450056,    0.321734518,\
+    -0.309198350,    0.161730975,    0.937132597,\
+    -0.105872914,   -0.985147774,    0.135085553,\
+    -0.000358216,    0.000502050, -285.955871582,\
+    23.052556992,   10.656435966,   18.293930054,\
+   239.106460571,  332.808990479,  -20.000000000 )""")
+    commands.append("scene side, store")
+    commands.append("hide cartoon, chain A")
+    commands.append("""set_view (\
+     0.981791675,    0.187008470,    0.032943685,\
+    -0.183039993,    0.978211105,   -0.097853623,\
+    -0.050524112,    0.090041943,    0.994643092,\
+    -0.000335140,   -0.000247810, -157.019104004,\
+    15.821222305,    6.886687756,   16.715213776,\
+   137.008300781,  176.940826416,  -20.000000000 )""")
+    commands.append("scene cavity, store")
+
+    with open("./figures/3b_pymol_commands.pml", 'w') as f:
+        f.write('\n'.join(commands))
+
 if __name__ == '__main__':
     analyze_positions()
     analyze_arginine_3x50()
+    visualize_G_protein_contact_positions()

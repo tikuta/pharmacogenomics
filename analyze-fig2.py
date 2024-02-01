@@ -296,7 +296,7 @@ def analyze_nonterminal_regions():
                 print("{} ({})".format(cols[0], structure_based_number))
 
     # Write PyMOL commands
-    commands = ["fetch 3sn6R", "hide everything", "show cartoon, resi 1-400", "color gray50, elem C", "bg_color white"]
+    commands = ["fetch 3sn6R", "hide everything", "show cartoon, resi 1-400", "color gray90, elem C", "bg_color white"]
     commands.append("""set_view (\
      0.995574713,    0.004649362,   -0.093772046,\
      0.093761533,    0.002609347,    0.995587170,\
