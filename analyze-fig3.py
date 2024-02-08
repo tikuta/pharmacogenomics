@@ -144,32 +144,33 @@ def analyze_G_protein_contact_positions():
     gi_residues = common_residues | {"12x49", "2x40", "3x50", "3x53", "34x52", "34x55", "5x71", "6x32", "7x56", "8x47", "8x49"}
     gq_residues = common_residues | {"2x37", "2x39", "2x40", "3x49", "34x51", "34x53", "34x55", "34x56", "34x57", "4x38", "4x39", "6x30", "6x33", "8x48", "8x49"}
 
-    roi = gs_residues | gi_residues | gq_residues
-    gs_gi_gq = gs_residues & gi_residues & gq_residues
-    gs = gs_residues - gi_residues - gq_residues
-    gi = gi_residues - gs_residues - gq_residues
-    gq = gq_residues - gs_residues - gi_residues
-    gs_gi = gs_residues & gi_residues - gq_residues
-    gi_gq = gi_residues & gq_residues - gs_residues
-    gq_gs = gq_residues & gs_residues - gi_residues
+    roi = frozenset(gs_residues | gi_residues | gq_residues)
+    gs_only = frozenset(gs_residues - gi_residues - gq_residues)
+    print("Gs only", gs_only)
+    gi_only = frozenset(gi_residues - gs_residues - gq_residues)
+    print("Gi only", gi_only)
+    gq_only = frozenset(gq_residues - gs_residues - gi_residues)
+    print("Gq only", gq_only)
+    gs_gi = frozenset(gs_residues & gi_residues - gq_residues)
+    print("Gs^Gi", gs_gi)
+    gi_gq = frozenset(gi_residues & gq_residues - gs_residues)
+    print("Gi^Gq", gi_gq)
+    gq_gs = frozenset(gq_residues & gs_residues - gi_residues)
+    print("Gq^Gs", gq_gs)
+    gs_gi_gq = frozenset(gs_residues & gi_residues & gq_residues)
+    print("Gs^Gi^Gq", gs_gi_gq)
 
     # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
-    colormap = {}
-    print("All", " ".join(sorted(list(roi), key=lambda gn: Segment.generic_number_of(gn).index)))
-    print("Common (gray)", " ".join(sorted(list(gs_gi_gq), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "gray50" for gn in gs_gi_gq})
-    print("Gs (cyan)", " ".join(sorted(list(gs), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "cyan" for gn in gs})
-    print("Gi (magenta)", " ".join(sorted(list(gi), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "magenta" for gn in gi})
-    print("Gq (yellow)", " ".join(sorted(list(gq), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "yellow" for gn in gq})
-    print("Gs^Gi (blue)", " ".join(sorted(list(gs_gi), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "blue" for gn in gs_gi})
-    print("Gi^Gq (red)", " ".join(sorted(list(gi_gq), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "red" for gn in gi_gq})
-    print("Gq^Gs (green)", " ".join(sorted(list(gq_gs), key=lambda gn: Segment.generic_number_of(gn).index)))
-    colormap.update({gn: "green" for gn in gq_gs})
+    pymol_colormap = {gs_gi_gq: "gray50",
+        gs_only: "cyan", gs_gi: "blue",
+        gi_only: "magenta", gi_gq: "red",
+        gq_only: "yellow", gq_gs: "green"
+    }
+    matplot_colormap = {gs_gi_gq: "tab:gray",
+        gs_only: GproteinCoupling.Gs.color, gs_gi: "blue",
+        gi_only: GproteinCoupling.Gio.color, gi_gq: "red",
+        gq_only: GproteinCoupling.Gq11.color, gq_gs: "lime"
+    }
 
     # Fig. 2b
     # Look up these residues in ADRB2
@@ -197,7 +198,8 @@ def analyze_G_protein_contact_positions():
         commands.append("select {}_{}, chain R and resi {}".format(r, gen_num, r[1:]))
         commands.append("show spheres, {} and name CA".format(r))
         gn = gen_num.split('.')[0] + 'x' + gen_num.split('x')[-1]
-        commands.append("color {}, {} and name CA".format(colormap[gn], r))
+        color = next((pymol_colormap[residues] for residues in pymol_colormap.keys() if gn in residues), None)
+        commands.append("color {}, {} and name CA".format(color, r))
 
     commands.append("""set_view (\
      0.945073068,   -0.057450056,    0.321734518,\
@@ -220,8 +222,7 @@ def analyze_G_protein_contact_positions():
     with open("./figures/3b_pymol_commands.pml", 'w') as f:
         f.write('\n'.join(commands))
 
-    # Fig. 2c
-    freqs_by_coupling = {primary: [] for primary in GproteinCoupling}
+    anno_by_coupling = {primary: {gn: [] for gn in roi} for primary in GproteinCoupling}
     number_of_receptors = {primary: 0 for primary in GproteinCoupling}
     for receptor in gpcrdb.get_filtered_receptor_list():
         if receptor.receptor_class != 'Class A (Rhodopsin)':
@@ -246,27 +247,31 @@ def analyze_G_protein_contact_positions():
                 structure_based_number = anno.generic_number.split('.')[0] + 'x' + latter
 
                 if structure_based_number in roi:
-                    freqs_by_coupling[receptor.primary_coupling].append(anno.snv.AF)
-    
-    print(number_of_receptors)
-    print({k: len(v) for k, v in freqs_by_coupling.items()})
-    print({k: max(v) for k, v in freqs_by_coupling.items()})
+                    anno_by_coupling[receptor.primary_coupling][structure_based_number].append(anno)
 
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4), dpi=300)
+    # Fig. S3c
+    fig, axes = plt.subplots(len(GproteinCoupling), 1, figsize=(4, 5), dpi=300)
 
-    freqs = [freqs_by_coupling[g] for g in GproteinCoupling]
-    colors = [g.color for g in GproteinCoupling]
-    labels = [g.value for g in GproteinCoupling]
-    ax.hist(freqs, bins=20, range=(0, 1), color=colors, stacked=True, label=labels)
-    ax.legend()
-    ax.set_xlabel("Allele Freq.")
-    ax.set_ylabel("Number of Variants")
-    ax.set_yscale('log')
+    for ax, g in zip(axes, GproteinCoupling):
+        left = 0
+        for residues in matplot_colormap.keys():
+            delta = sum([len(anno_by_coupling[g][gn]) for gn in residues])
+            ax.barh(0, delta, left=left, color=matplot_colormap[residues])
+            left += delta
+        ax.set_xlim(0, left)
+        ax2 = ax.twiny()
+        ax2.set_xticks([left])
+        ax2.set_xticklabels([left])
+        ax.set_yticks([0])
+        ax.set_yticklabels(["{}\n(n = {})".format(g.value, number_of_receptors[g])])
+        if g == GproteinCoupling.Gq11:
+            ax.set_ylabel("Primary coupling")
+    axes[-1].set_xlabel("Number of Variants")
 
     fig.tight_layout()
-    fig.savefig("./figures/3c_contacts.pdf")
+    fig.savefig("./figures/S3c_contacts.pdf")
 
 if __name__ == '__main__':
     # analyze_positions()
-    # analyze_arginine_3x50()
-    analyze_G_protein_contact_positions()
+    analyze_arginine_3x50()
+    # analyze_G_protein_contact_positions()
