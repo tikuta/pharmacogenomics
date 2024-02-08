@@ -5,7 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import ensembl
-from utils import VariationType, Segment
+from utils import VariationType, Segment, GproteinCoupling
 import json
 import config
 
@@ -136,7 +136,7 @@ def analyze_arginine_3x50():
     fig.tight_layout()
     fig.savefig("./figures/S3a_arginine_3x50.pdf")
 
-def visualize_G_protein_contact_positions():
+def analyze_G_protein_contact_positions():
     # See the following reference for detail
     # https://doi.org/10.1038/s41467-022-34055-5
     common_residues = {"3x50", "3x53", "3x54", "34x50", "34x51", "34x55", "5x65", "5x68", "6x32", "6x33", "6x36", "6x37", "7x56", "8x47"}
@@ -153,15 +153,25 @@ def visualize_G_protein_contact_positions():
     gi_gq = gi_residues & gq_residues - gs_residues
     gq_gs = gq_residues & gs_residues - gi_residues
 
+    # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
+    colormap = {}
     print("All", " ".join(sorted(list(roi), key=lambda gn: Segment.generic_number_of(gn).index)))
     print("Common (gray)", " ".join(sorted(list(gs_gi_gq), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "gray50" for gn in gs_gi_gq})
     print("Gs (cyan)", " ".join(sorted(list(gs), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "cyan" for gn in gs})
     print("Gi (magenta)", " ".join(sorted(list(gi), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "magenta" for gn in gi})
     print("Gq (yellow)", " ".join(sorted(list(gq), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "yellow" for gn in gq})
     print("Gs^Gi (blue)", " ".join(sorted(list(gs_gi), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "blue" for gn in gs_gi})
     print("Gi^Gq (red)", " ".join(sorted(list(gi_gq), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "red" for gn in gi_gq})
     print("Gq^Gs (green)", " ".join(sorted(list(gq_gs), key=lambda gn: Segment.generic_number_of(gn).index)))
+    colormap.update({gn: "green" for gn in gq_gs})
 
+    # Fig. 2b
     # Look up these residues in ADRB2
     residues = []
     gen_nums = []
@@ -187,23 +197,7 @@ def visualize_G_protein_contact_positions():
         commands.append("select {}_{}, chain R and resi {}".format(r, gen_num, r[1:]))
         commands.append("show spheres, {} and name CA".format(r))
         gn = gen_num.split('.')[0] + 'x' + gen_num.split('x')[-1]
-        # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
-        color = None
-        if gn in gs_gi_gq:
-            color = "gray50"
-        elif gn in gs_gi:
-            color = "blue"
-        elif gn in gi_gq:
-            color = "red"
-        elif gn in gq_gs:
-            color = "green"
-        elif gn in gs:
-            color = "cyan"
-        elif gn in gi:
-            color = "magenta"
-        elif gn in gq:
-            color = "yellow"
-        commands.append("color {}, {} and name CA".format(color, r))
+        commands.append("color {}, {} and name CA".format(colormap[gn], r))
 
     commands.append("""set_view (\
      0.945073068,   -0.057450056,    0.321734518,\
@@ -226,7 +220,53 @@ def visualize_G_protein_contact_positions():
     with open("./figures/3b_pymol_commands.pml", 'w') as f:
         f.write('\n'.join(commands))
 
+    # Fig. 2c
+    freqs_by_coupling = {primary: [] for primary in GproteinCoupling}
+    number_of_receptors = {primary: 0 for primary in GproteinCoupling}
+    for receptor in gpcrdb.get_filtered_receptor_list():
+        if receptor.receptor_class != 'Class A (Rhodopsin)':
+            continue
+
+        number_of_receptors[receptor.primary_coupling] += 1
+
+        with open(receptor.japan_cds_csv_path) as f:
+            for l in f.readlines():
+                try:
+                    anno = ensembl.Annotation.from_csv_line(l)
+                except ensembl.BlankLineError:
+                    continue
+
+                if anno.var_type != VariationType.MISSENSE:
+                    continue
+
+                if not anno.generic_number:
+                    continue
+                
+                latter = anno.generic_number.split('x')[-1]
+                structure_based_number = anno.generic_number.split('.')[0] + 'x' + latter
+
+                if structure_based_number in roi:
+                    freqs_by_coupling[receptor.primary_coupling].append(anno.snv.AF)
+    
+    print(number_of_receptors)
+    print({k: len(v) for k, v in freqs_by_coupling.items()})
+    print({k: max(v) for k, v in freqs_by_coupling.items()})
+
+    fig, ax = plt.subplots(1, 1, figsize=(4, 4), dpi=300)
+
+    freqs = [freqs_by_coupling[g] for g in GproteinCoupling]
+    colors = [g.color for g in GproteinCoupling]
+    labels = [g.value for g in GproteinCoupling]
+    ax.hist(freqs, bins=20, range=(0, 1), color=colors, stacked=True, label=labels)
+    ax.legend()
+    ax.set_xlabel("Allele Freq.")
+    ax.set_ylabel("Number of Variants")
+    ax.set_yscale('log')
+
+    fig.tight_layout()
+    fig.savefig("./figures/3c_contacts.pdf")
+
 if __name__ == '__main__':
-    analyze_positions()
-    analyze_arginine_3x50()
-    visualize_G_protein_contact_positions()
+    # analyze_positions()
+    # analyze_arginine_3x50()
+    analyze_G_protein_contact_positions()

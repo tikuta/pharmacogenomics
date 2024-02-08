@@ -6,13 +6,14 @@ import os
 from typing import List, Dict
 from config import *
 import pandas as pd
-from utils import Segment
+from utils import Segment, GproteinCoupling
 
 class GPCRdbEntry:
-    def __init__(self, entry_name: str, accession: str, receptor_class: str, force=False) -> None:
+    def __init__(self, entry_name: str, accession: str, receptor_class: str, primary_coupling=None, force=False) -> None:
         self.entry_name = entry_name
         self.accession = accession
         self.receptor_class = receptor_class
+        self.primary_coupling = primary_coupling
 
         self.dirpath = os.path.join(self.receptor_class, self.entry_name)
         os.makedirs(self.dirpath, exist_ok=True)
@@ -96,6 +97,8 @@ class GPCRdbEntry:
                 json.dump(j, f, indent=2)
 
 def get_filtered_receptor_list(force=False):
+    primary_coupling = _get_primary_coupling(force=force)
+
     receptors = _get_receptor_list(force=force)
     for r in receptors:
         species = r['species']
@@ -108,8 +111,11 @@ def get_filtered_receptor_list(force=False):
         
         accession = r['accession']
         receptor_class = r['receptor_class']
+
+        coupling = primary_coupling.get(entry_name.replace("_human", "").upper(), GproteinCoupling.Unknown)
+
         try:
-            yield GPCRdbEntry(entry_name, accession, receptor_class, force=force)
+            yield GPCRdbEntry(entry_name, accession, receptor_class, primary_coupling=coupling, force=force)
         except Exception as e:
             print("Skipped {}: {}".format(entry_name, str(e)))
 
@@ -130,7 +136,7 @@ def _get_receptor_list(force=False) -> List[Dict]:
     with open(p) as f:
         return json.load(f)
 
-def _get_coupling(force=False) -> pd.DataFrame:
+def _get_primary_coupling(force=False):
     html = os.path.join("data", "couplings.html")
     csv = os.path.join("data", "couplings.csv")
 
@@ -147,31 +153,15 @@ def _get_coupling(force=False) -> pd.DataFrame:
     dfs = pd.read_html(html, displayed_only=False, attrs={'id': 'familiestabletab'})
     assert(len(dfs) == 1)
     df = dfs[0].drop(0).rename(columns=lambda x: x.replace('  ×', ''))
-    extracted = df[['Source', 'Receptor', 'Guide to Pharmacology']][df[('Source', 'Group')] == 'Inoue'].droplevel(0, axis=1)
-    extracted.to_csv(csv)
+    df = df[['Receptor', 'Selectivity', 'Family rank orders']][df[('Source', 'Lab')] == 'GproteinDb'].droplevel(0, axis=1)
+    df.to_csv(csv)
 
-    return extracted
-
-def primary_coupled_receptors(force=False) -> Dict:
-    df = _get_coupling(force=force)
     df_A = df[df['Cl'] == 'A']
-    df_primary_Gs    = df_A[(df_A['Gs'] == "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] != "1'")]
-    df_primary_Gio   = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] == "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] != "1'")]
-    df_primary_Gq11  = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] == "1'") & (df_A['G12/13'] != "1'")]
-    df_primary_G1213 = df_A[(df_A['Gs'] != "1'") & (df_A['Gi/o'] != "1'") & (df_A['Gq/11'] != "1'") & (df_A['G12/13'] == "1'")]
-    df_promiscuous   = df_A[~df_A.index.isin(df_primary_Gs.index) &
-                      ~df_A.index.isin(df_primary_Gio.index) &
-                      ~df_A.index.isin(df_primary_Gq11.index) &
-                      ~df_A.index.isin(df_primary_G1213.index)]
 
-    d = {
-        "Gs":          list(df_primary_Gs['Uniprot']),
-        "Gi/o":        list(df_primary_Gio['Uniprot']),
-        "Gq/11":       list(df_primary_Gq11['Uniprot']),
-        "G12/13":      list(df_primary_G1213['Uniprot']),
-        "promiscuous": list(df_promiscuous['Uniprot']),
-        }
-    return d
+    primary_coupling = {}
+    primary_coupling.update({name: GproteinCoupling.Gs for name in set(df_A['Uniprot'][df_A['Primary family'] == "Gs"])})
+    primary_coupling.update({name: GproteinCoupling.Gio for name in set(df_A['Uniprot'][df_A['Primary family'] == "Gi/o"])})
+    primary_coupling.update({name: GproteinCoupling.Gq11 for name in set(df_A['Uniprot'][df_A['Primary family'] == "Gq/11"])})
+    primary_coupling.update({name: GproteinCoupling.G1213 for name in set(df_A['Uniprot'][df_A['Primary family'] == "G12/13"])})
 
-if __name__ == '__main__':
-    print(len(list(get_filtered_receptor_list())))
+    return primary_coupling

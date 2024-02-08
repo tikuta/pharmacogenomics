@@ -1,10 +1,32 @@
 #!/usr/bin/env python3
-from typing import List
 from matplotlib import pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 import enum
 from config import STANDARD_CODES
+
+class GproteinCoupling(enum.Enum):
+    Gs = "Gs"
+    Gio = "Gi/o"
+    Gq11 = "Gq/11"
+    G1213 = "G12/13"
+    Unknown = "Unknown"
+
+    def __str__(self) -> str:
+        return self.value
+    
+    @property
+    def color(self):
+        if self == GproteinCoupling.Gs:
+            return 'cyan'
+        elif self == GproteinCoupling.Gio:
+            return 'magenta'
+        elif self == GproteinCoupling.Gq11:
+            return 'yellow'
+        elif self == GproteinCoupling.G1213:
+            return 'white'
+        elif self == GproteinCoupling.Unknown:
+            return 'tab:gray'
 
 class Segment(enum.Enum):
     Nterm = "N-term"

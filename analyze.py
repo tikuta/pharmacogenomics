@@ -151,33 +151,3 @@ def analyze_G_protein_contact_positions() -> Dict:
                             ret[primary_coupled_G_protein][contact_type] = arr
     print(annotations)
     return ret, annotations
-
-def main():
-    # plot_gene_map()
-    # calls = analyze_calls()
-    # plot_calls(*calls)
-    # var_type = analyze_var_type()
-    # plot_var_type(*var_type)
-    # var_seg = analyze_var_seg()
-    # plot_var_seg(*var_seg)
-    # plot_var_seg_percent(*var_seg)
-    # af = analyze_allele_freq()
-    # plot_allele_freq(af)
-    # nter = analyze_Nter()
-    # plot_Nter(nter)
-    # cter = analyze_Cter()
-    # plot_cter(cter)
-    # vars = analyze_high_freq_vars()
-    # plot_high_freq_vars(vars)
-    # pos = analyze_family_A_pos()
-    # plot_family_A_pos(*pos)
-    # aa_stats, codon_stats = analyze_arginine_3x50()
-    # plot_arginine_3x50(aa_stats, codon_stats)
-    vars = analyze_G_protein_common_contact_positions()
-    plot_G_protein_common_contact_positions(vars)
-    # af, anno = analyze_G_protein_contact_positions()
-    # plot_G_protein_contact_positions(af, anno)
-    pass
-
-if __name__ == '__main__':
-    main()
