@@ -80,9 +80,12 @@ def analyze_positions():
 def analyze_arginine_3x50():
     roi = "3x50"
 
+    family_stats = {}
     aa_stats = {}
     codon_stats = {}
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
+        family_stats[receptor.receptor_class] = family_stats.get(receptor.receptor_class, 0) + 1
+
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue
 
@@ -106,32 +109,45 @@ def analyze_arginine_3x50():
                             codon = json.load(j)['canonical_cds'][res_num * 3 - 3: res_num * 3]
                             codon_stats[codon] = codon_stats.get(codon, 0) + 1
     
-    fig, ax = plt.subplots(1, 1, figsize=(6, 2), dpi=300)
+    fig, ax = plt.subplots(1, 1, figsize=(8, 2), dpi=300)
+
+    left = 0
+    for family in sorted(family_stats.keys()):
+        delta = family_stats[family]
+        color = 'tab:orange' if family == 'Class A (Rhodopsin)' else 'lightgray'
+        ax.barh(2, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
+        if family == 'Class A (Rhodopsin)':
+            ax.text(left + delta / 2, 2, "Family A\n({})".format(delta), ha='center', va='center', size=6)
+        elif family.startswith("Class"):
+            family_name = family.split(" ")[1]
+            ax.text(left + delta / 2, 2, "{}\n({})".format(family_name, delta), ha='center', va='center', size=6)
+        left += delta
+    total_receptors = left
 
     left = 0
     for aa in sorted(aa_stats.keys(), key=lambda aa:aa_stats[aa], reverse=True):
         delta = aa_stats[aa]
-        ax.barh(1, delta, left=left, color=config.AA2COLOR[aa], linewidth=0.5, edgecolor='k')
-        if aa == "R":
+        color = 'tab:orange' if aa == 'R' else 'lightgray'
+        ax.barh(1, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
+        if aa == 'R':
             ax.text(left + delta / 2, 1, "Arg\n({})".format(delta), ha='center', va='center', size=6)
         left += delta
-    total = left
     
     left = 0
     for codon in sorted(codon_stats.keys(), key=lambda codon: ('CG' not in codon, -codon_stats[codon])):
         delta = codon_stats[codon]
-        ax.barh(0, delta, left=left, linewidth=0.5, edgecolor='k')
+        color = 'tab:orange' if 'CG' in codon else 'lightgray'
+        ax.barh(0, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
         ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center', size=6)
         left += delta
 
-    ax.set_xlim(0, total)
-    ax.set_xticks([0, 50, 100, 150, 200, 250, total])
-    ax.set_xticklabels([0, 50, 100, 150, 200, 250, total])
-    ax.set_xlabel("Number of family A GPCRs")
+    ax.set_xlim(0, total_receptors)
+    ax.set_xticks([total_receptors], minor=True)
+    ax.set_xticklabels([total_receptors], minor=True)
+    ax.set_xlabel("Number of GPCRs")
 
-    ax.set_yticks([0, 1])
-    ax.set_yticklabels(['Codon', 'Amino acid'])
-    ax.set_ylabel("3x50")
+    ax.set_yticks([0, 1, 2])
+    ax.set_yticklabels(['3x50 Codon', '3x50 AA', "GPCRs"])
     
     fig.tight_layout()
     fig.savefig("./figures/S3a_arginine_3x50.pdf")
