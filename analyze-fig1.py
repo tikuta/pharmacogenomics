@@ -13,7 +13,7 @@ import json
 
 def analyze_calls():
     num_cds, num_gene = 0, 0
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         calls_gene = set()
         with open(receptor.japan_gene_vcf_path) as f:
             for l in f.readlines():
@@ -53,7 +53,7 @@ def analyze_calls():
 
 def analyze_var_type():
     num_missense, num_silent, num_nonsense = 0, 0, 0
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.japan_cds_csv_path) as f:
             for l in f.readlines():
                 try:
@@ -90,7 +90,7 @@ def analyze_var_type():
 
 def analyze_var_seg():
     seg_missense, seg_silent, seg_nonsense = {}, {}, {}
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.japan_cds_csv_path) as f:
             for l in f.readlines():
                 try:
@@ -149,7 +149,7 @@ def analyze_var_seg():
 
 def analyze_segment_ratio():
     residue_counts = {seg: [] for seg in Segment}
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         counts = {seg: 0 for seg in Segment}
         with open(receptor.alignment_path) as f:
             for l in f:
@@ -199,7 +199,7 @@ def analyze_gene_stats():
     exon_numbers = []
     translation_lengths = []
 
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.ensembl_path) as f:
             j = json.load(f)
 

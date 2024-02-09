@@ -7,12 +7,11 @@ plt.rcParams['font.family'] = "Arial"
 import ensembl
 from utils import VariationType, Segment, GproteinCoupling
 import json
-import config
 
 def analyze_positions():
     assigned = {}
     found = {}
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue
 
@@ -162,19 +161,19 @@ def analyze_G_protein_contact_positions():
 
     roi = frozenset(gs_residues | gi_residues | gq_residues)
     gs_only = frozenset(gs_residues - gi_residues - gq_residues)
-    print("Gs only", gs_only)
+    print("Gs only", " ".join(sorted(list(gs_only), key=lambda gn:Segment.generic_number_of(gn).index)))
     gi_only = frozenset(gi_residues - gs_residues - gq_residues)
-    print("Gi only", gi_only)
+    print("Gi only", " ".join(sorted(list(gi_only), key=lambda gn:Segment.generic_number_of(gn).index)))
     gq_only = frozenset(gq_residues - gs_residues - gi_residues)
-    print("Gq only", gq_only)
+    print("Gq only", " ".join(sorted(list(gq_only), key=lambda gn:Segment.generic_number_of(gn).index)))
     gs_gi = frozenset(gs_residues & gi_residues - gq_residues)
-    print("Gs^Gi", gs_gi)
+    print("Gs^Gi", " ".join(sorted(list(gs_gi), key=lambda gn:Segment.generic_number_of(gn).index)))
     gi_gq = frozenset(gi_residues & gq_residues - gs_residues)
-    print("Gi^Gq", gi_gq)
+    print("Gi^Gq", " ".join(sorted(list(gi_gq), key=lambda gn:Segment.generic_number_of(gn).index)))
     gq_gs = frozenset(gq_residues & gs_residues - gi_residues)
-    print("Gq^Gs", gq_gs)
+    print("Gq^Gs", " ".join(sorted(list(gq_gs), key=lambda gn:Segment.generic_number_of(gn).index)))
     gs_gi_gq = frozenset(gs_residues & gi_residues & gq_residues)
-    print("Gs^Gi^Gq", gs_gi_gq)
+    print("Gs^Gi^Gq", " ".join(sorted(list(gs_gi_gq), key=lambda gn:Segment.generic_number_of(gn).index)))
 
     # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
     pymol_colormap = {gs_gi_gq: "gray50",
@@ -188,7 +187,7 @@ def analyze_G_protein_contact_positions():
         gq_only: GproteinCoupling.Gq11.color, gq_gs: "lime"
     }
 
-    # Fig. 2b
+    # Fig. 3b
     # Look up these residues in ADRB2
     residues = []
     gen_nums = []
@@ -288,6 +287,6 @@ def analyze_G_protein_contact_positions():
     fig.savefig("./figures/S3c_contacts.pdf")
 
 if __name__ == '__main__':
-    # analyze_positions()
+    analyze_positions()
     analyze_arginine_3x50()
-    # analyze_G_protein_contact_positions()
+    analyze_G_protein_contact_positions()

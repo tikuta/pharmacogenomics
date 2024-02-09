@@ -10,7 +10,7 @@ import json
 
 def analyze_high_allele_freq_vars():
     high_frequent_vars = []
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.ensembl_path) as f:
             display_name = json.load(f)['display_name']
         with open(receptor.japan_cds_csv_path) as f:
@@ -117,7 +117,7 @@ def analyze_terminal_regions():
     n_glyco_gain, n_glyco_loss = [], []
     o_glyco_gain, o_glyco_loss = [], []
     phospho_gain, phospho_loss = [], []
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.ensembl_path) as f:
             display_name = json.load(f)['display_name']
         with open(receptor.alignment_path) as f:
@@ -244,7 +244,7 @@ def analyze_terminal_regions():
 
 def analyze_nonterminal_regions():
     nonterminal = []
-    for receptor in gpcrdb.get_filtered_receptor_list("receptors.json"):
+    for receptor in gpcrdb.get_filtered_receptor_list():
         # Generic number system is consistent only within the same class.
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue

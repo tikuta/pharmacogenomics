@@ -12,38 +12,6 @@ AM_THRESHOLD_PATHOGENIC = 0.564
 AM_THRESHOLD_BENIGN = 0.34
 AM_FILENAME = "alpha_missense.tsv"
 
-AA2COLOR = {
-    "A": "#ffff00",
-    "M": "#ffff00",
-    "F": "#07b050",
-    "Y": "#07b050",
-    "W": "#07b050",
-
-    "C": "#bf8f00",
-    
-    "D": "#ff0000",
-    "E": "#ff0000",
-
-    "G": "#ff02ff",
-
-    "H": "#8282D2",
-
-    "I": "#ffff00",
-    "L": "#ffff00",
-    "V": "#ffff00",
-
-    "K": "tab:blue", # "#0070c0",
-    "R": "tab:blue", # "#0070c0",
-
-    "N": "#7030a0",
-    "Q": "#7030a0",
-
-    "S": "#7030a0",
-    "T": "#7030a0",
-
-    "P": "#d603ff",
-}
-
 BLOCKLIST = (
     # pseudogenes
     'npy6r_human', # https://www.uniprot.org/uniprotkb/Q99463/entry
