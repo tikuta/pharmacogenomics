@@ -148,7 +148,8 @@ def analyze_var_seg():
     fig.savefig("./figures/1b_var_seg_percent.pdf")
 
 def analyze_segment_ratio():
-    residue_counts = {seg: [] for seg in Segment}
+    residue_counts_A = {seg: [] for seg in Segment}
+    residue_counts_nonA = {seg: [] for seg in Segment}
     for receptor in gpcrdb.get_filtered_receptor_list():
         counts = {seg: 0 for seg in Segment}
         with open(receptor.alignment_path) as f:
@@ -158,8 +159,11 @@ def analyze_segment_ratio():
                 cols = l.split(',')
                 seg = Segment.value_of(cols[1])
                 counts[seg] = counts.get(seg, 0) + 1
-        for seg in residue_counts.keys():
-            residue_counts[seg].append(counts[seg])
+        for seg in Segment:
+            if receptor.receptor_class == 'Class A (Rhodopsin)':
+                residue_counts_A[seg].append(counts[seg])
+            else:
+                residue_counts_nonA[seg].append(counts[seg])
     
     fig, axes = plt.subplots(4, 4, figsize=(8, 7), dpi=300, sharey=True)
     segments = [seg for seg in Segment if seg != Segment.ICL4]
@@ -169,35 +173,38 @@ def analyze_segment_ratio():
             ax = axes[y][x]
             seg = segments[4 * y + x]
 
-            values = residue_counts[seg]
+            values = residue_counts_A[seg] + residue_counts_nonA[seg]
             bins = 20
             edges = (20, 60)
             if np.min(values) < edges[0] or edges[1] < np.max(values):
                 edges = None
 
-            ax.hist(values, bins=bins, range=edges, color=seg.color)
+            ax.hist([residue_counts_A[seg], residue_counts_nonA[seg]], bins=bins, range=edges, color=[seg.color, 'lightgray'], stacked=True)
             median = np.median(values)
             ax.axvline(median, color='k', lw=1)
+            ax2 = ax.twiny()
+            ax2.set_xlim(ax.get_xlim())
+            ax2.set_xticks([median])
+            ax2.set_xticklabels([f"{median:.1f}"])
+            ax2.tick_params(length=0, pad=0)
 
-            title = seg.value
-            if seg == Segment.Nterm:
-                title += f" (median = {median})"
-            else:
-                title += f" ({median})"
-            ax.set_title(title)
+            ax.set_title(seg.value)
+            ax.set_ylim(10**-0.5, 10**2.8)
             ax.set_yscale('log')
             if x == 0:
                 ax.set_ylabel("Number of GPCRs")
             if y == 3:
                 ax.set_xlabel("Number of residues\n[amino acids]")
     fig.tight_layout()
-    fig.savefig("./figures/S1d_residue_count.pdf")
+    fig.savefig("./figures/S1c_residue_count.pdf")
 
 def analyze_gene_stats():
-    gene_lengths = []
-    transcipt_lengths = []
-    exon_numbers = []
-    translation_lengths = []
+    gene_lengths_A, gene_lengths_nonA = [], []
+    transcipt_lengths_A, transcipt_lengths_nonA = [], []
+    exon_numbers_A, exon_numbers_nonA = [], []
+    translation_lengths_A, translation_lengths_nonA = [], []
+    labels = ["Family A", "Others"]
+    colors = ["tab:gray", "lightgray"]
 
     for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.ensembl_path) as f:
@@ -205,60 +212,90 @@ def analyze_gene_stats():
 
             start = j['start']
             end = j['end']
-            gene_lengths.append(end - start + 1)
+            if receptor.receptor_class == 'Class A (Rhodopsin)':
+                gene_lengths_A.append(end - start + 1)
+            else:
+                gene_lengths_nonA.append(end - start + 1)
 
             for transcipt in j['Transcript']:
                 if transcipt['is_canonical'] == 1:
                     exons = transcipt['Exon']
-                    transcipt_lengths.append(sum([exon['end'] - exon['start'] + 1 for exon in exons]))
-                    exon_numbers.append(len(exons))
-                    translation_lengths.append(transcipt['Translation']['length'])
 
-    fig, axes = plt.subplots(2, 2, figsize=(7, 5), dpi=300)
+                    if receptor.receptor_class == 'Class A (Rhodopsin)':
+                        transcipt_lengths_A.append(sum([exon['end'] - exon['start'] + 1 for exon in exons]))
+                        exon_numbers_A.append(len(exons))
+                        translation_lengths_A.append(transcipt['Translation']['length'])
+                    else:
+                        transcipt_lengths_nonA.append(sum([exon['end'] - exon['start'] + 1 for exon in exons]))
+                        exon_numbers_nonA.append(len(exons))
+                        translation_lengths_nonA.append(transcipt['Translation']['length'])
+
+    fig, axes = plt.subplots(2, 2, figsize=(5, 4), dpi=300)
     
-    nbins, _, _ = axes[0][0].hist(np.log10(gene_lengths), bins=40, color='tab:gray')
-    axes[0][0].set_xlabel("Gene length [nucleotides]")
+    ax = axes[0][0]
+    ax.hist([np.log10(gene_lengths_A), np.log10(gene_lengths_nonA)], bins=40, color=colors, label=labels, stacked=True)
+    ax.set_xlabel("Gene length [nucleotides]")
     xrange = np.arange(3, 7)
-    axes[0][0].set_xticks(xrange)
-    axes[0][0].set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
-    median = np.median(gene_lengths)
-    axes[0][0].axvline(np.log10(median), color='tab:orange')
-    axes[0][0].text(np.log10(median), np.max(nbins), f"{median:.0f} ", color='tab:orange', ha='right', va='center')
-    axes[0][0].set_ylabel("Number of GPCRs")
+    ax.set_xticks(xrange)
+    ax.set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
+    median = np.median(np.concatenate([gene_lengths_A, gene_lengths_nonA]))
+    ax.axvline(np.log10(median), color='tab:orange')
+    ax2 = ax.twiny()
+    ax2.set_xticks([np.log10(median)])
+    ax2.set_xticklabels([f"{median:.1f}"])
+    ax2.set_xlim(ax.get_xlim())
+    ax2.tick_params(colors='tab:orange', length=0, pad=0)
+    ax.set_ylabel("Number of GPCRs")
 
-    nbins, _, _ = axes[1][0].hist(np.log10(transcipt_lengths), bins=40, color='tab:gray')
-    axes[1][0].set_xlabel("Canonical transcript length [nucleotides]")
-    xrange = np.arange(3, 4.5, 0.25)
-    axes[1][0].set_xticks(xrange)
-    axes[1][0].set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
-    median = np.median(transcipt_lengths)
-    axes[1][0].axvline(np.log10(median), color='tab:orange')
-    axes[1][0].text(np.log10(median), np.max(nbins), f" {median:.0f}", color='tab:orange', ha='left', va='center')
-    axes[1][0].set_ylabel("Number of GPCRs")
+    ax = axes[1][0]
+    ax.hist([np.log10(transcipt_lengths_A), np.log10(transcipt_lengths_nonA)], bins=40, color=colors, label=labels, stacked=True)
+    ax.set_xlabel("Canonical transcript length\n[nucleotides]")
+    xrange = np.arange(3, 4.5, 0.5)
+    ax.set_xticks(xrange)
+    ax.set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
+    median = np.median(np.concatenate([transcipt_lengths_A, transcipt_lengths_nonA]))
+    ax.axvline(np.log10(median), color='tab:orange')
+    ax2 = ax.twiny()
+    ax2.set_xticks([np.log10(median)])
+    ax2.set_xticklabels([f"{median:.1f}"])
+    ax2.set_xlim(ax.get_xlim())
+    ax2.tick_params(colors='tab:orange', length=0, pad=0)
+    ax.set_ylabel("Number of GPCRs")
 
-    nbins, _, _ = axes[0][1].hist(exon_numbers, bins=20, color='tab:gray')
-    axes[0][1].set_xlabel("Number of exons")
-    median = np.median(exon_numbers)
-    axes[0][1].axvline(median, color='tab:orange')
-    axes[0][1].text(np.log10(median), np.max(nbins), f"    {median:.0f}", color='tab:orange', ha='left', va='center')
-    axes[0][1].set_yscale('log')
+    ax = axes[0][1]
+    ax.hist([exon_numbers_A, exon_numbers_nonA], bins=40, color=colors, label=labels, stacked=True)
+    ax.set_xlabel("Number of exons")
+    median = np.median(np.concatenate([exon_numbers_A, exon_numbers_nonA]))
+    ax.axvline(median, color='tab:orange')
+    ax2 = ax.twiny()
+    ax2.set_xticks([median])
+    ax2.set_xticklabels([f"{median:.1f}"])
+    ax2.set_xlim(ax.get_xlim())
+    ax2.tick_params(colors='tab:orange', length=0, pad=0)
+    ax.set_yscale('log')
+    ax.legend()
     
-    nbins, _, _ = axes[1][1].hist(np.log10(translation_lengths), bins=20, color='tab:gray')
-    axes[1][1].set_xlabel("Canonical translation length [amino acids]")
-    xrange = np.arange(2.5, 4, 0.25)
-    axes[1][1].set_xticks(xrange)
-    axes[1][1].set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
-    median = np.median(translation_lengths)
-    axes[1][1].axvline(np.log10(median), color='tab:orange')
-    axes[1][1].text(np.log10(median), np.max(nbins), f" {median:.0f}", color='tab:orange', ha='left', va='center')
-    axes[1][1].set_yscale('log')
+    ax = axes[1][1]
+    ax.hist([np.log10(translation_lengths_A), np.log10(translation_lengths_nonA)], bins=40, color=colors, label=labels, stacked=True)
+    ax.set_xlabel("Canonical translation length\n[amino acids]")
+    xrange = np.arange(2.5, 4, 0.5)
+    ax.set_xticks(xrange)
+    ax.set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
+    median = np.median(np.concatenate([translation_lengths_A, translation_lengths_nonA]))
+    ax.axvline(np.log10(median), color='tab:orange')
+    ax2 = ax.twiny()
+    ax2.set_xticks([np.log10(median)])
+    ax2.set_xticklabels([f"{median:.1f}"])
+    ax2.set_xlim(ax.get_xlim())
+    ax2.tick_params(colors='tab:orange', length=0, pad=0)
+    ax.set_yscale('log')
 
     fig.tight_layout()
-    fig.savefig("./figures/S1b_stats.pdf")
+    fig.savefig("./figures/S1a_stats.pdf")
 
 if __name__ == '__main__':
-    # analyze_calls()
-    # analyze_var_type()
-    # analyze_var_seg()
-    # analyze_gene_stats()
+    analyze_calls()
+    analyze_var_type()
+    analyze_var_seg()
+    analyze_gene_stats()
     analyze_segment_ratio()
