@@ -159,21 +159,23 @@ def analyze_G_protein_contact_positions():
     gi_residues = common_residues | {"12x49", "2x40", "3x50", "3x53", "34x52", "34x55", "5x71", "6x32", "7x56", "8x47", "8x49"}
     gq_residues = common_residues | {"2x37", "2x39", "2x40", "3x49", "34x51", "34x53", "34x55", "34x56", "34x57", "4x38", "4x39", "6x30", "6x33", "8x48", "8x49"}
 
+    f = lambda gn: (Segment.generic_number_of(gn).index, int(gn.split('x')[-1]))
+
     roi = frozenset(gs_residues | gi_residues | gq_residues)
     gs_only = frozenset(gs_residues - gi_residues - gq_residues)
-    print("Gs only", " ".join(sorted(list(gs_only), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gs only", " ".join(sorted(list(gs_only), key=f)))
     gi_only = frozenset(gi_residues - gs_residues - gq_residues)
-    print("Gi only", " ".join(sorted(list(gi_only), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gi only", " ".join(sorted(list(gi_only), key=f)))
     gq_only = frozenset(gq_residues - gs_residues - gi_residues)
-    print("Gq only", " ".join(sorted(list(gq_only), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gq only", " ".join(sorted(list(gq_only), key=f)))
     gs_gi = frozenset(gs_residues & gi_residues - gq_residues)
-    print("Gs^Gi", " ".join(sorted(list(gs_gi), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gs^Gi", " ".join(sorted(list(gs_gi), key=f)))
     gi_gq = frozenset(gi_residues & gq_residues - gs_residues)
-    print("Gi^Gq", " ".join(sorted(list(gi_gq), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gi^Gq", " ".join(sorted(list(gi_gq), key=f)))
     gq_gs = frozenset(gq_residues & gs_residues - gi_residues)
-    print("Gq^Gs", " ".join(sorted(list(gq_gs), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gq^Gs", " ".join(sorted(list(gq_gs), key=f)))
     gs_gi_gq = frozenset(gs_residues & gi_residues & gq_residues)
-    print("Gs^Gi^Gq", " ".join(sorted(list(gs_gi_gq), key=lambda gn:Segment.generic_number_of(gn).index)))
+    print("Gs^Gi^Gq", " ".join(sorted(list(gs_gi_gq), key=f)))
 
     # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
     pymol_colormap = {gs_gi_gq: "gray50",
@@ -243,6 +245,9 @@ def analyze_G_protein_contact_positions():
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue
 
+        with open(receptor.ensembl_path) as f:
+            display_name = json.load(f)['display_name']
+
         number_of_receptors[receptor.primary_coupling] += 1
 
         with open(receptor.japan_cds_csv_path) as f:
@@ -262,7 +267,34 @@ def analyze_G_protein_contact_positions():
                 structure_based_number = anno.generic_number.split('.')[0] + 'x' + latter
 
                 if structure_based_number in roi:
-                    anno_by_coupling[receptor.primary_coupling][structure_based_number].append(anno)
+                    d = {"annotation": anno, "display_name": display_name}
+                    anno_by_coupling[receptor.primary_coupling][structure_based_number].append(d)
+
+    # Fig. 3c
+    fig, ax = plt.subplots(1, 1, figsize=(4, 2.5), dpi=300)
+
+    data = [sum([[d['annotation'].snv.AF for d in annos] for gn, annos in anno_by_coupling[g].items() if gn in gs_gi_gq], []) for g in GproteinCoupling]
+    labels = [g.value for g in GproteinCoupling]
+    colors = [g.color for g in GproteinCoupling]
+    _, bins, _ = ax.hist(data, bins=20, range=(0, 1), label=labels, color=colors, stacked=True, edgecolor='k', lw=0.5, orientation='horizontal')
+    for g in GproteinCoupling:
+        for gn, annos in anno_by_coupling[g].items():
+            if gn not in gs_gi_gq:
+                continue
+            for d in annos:
+                anno = d['annotation']
+                if anno.snv.AF > 0.2:
+                    y = 0.975 if d['display_name'] == 'GPR148' else 0.225
+                    text = " {} {}{}$^{{{}}}${}".format(d['display_name'], anno.ref_aa, anno.residue_number, anno.generic_number, anno.alt_aa)
+                    ax.text(1, y, text, ha='left', va='center')
+    ax.set_xscale('log')
+    ax.set_xlabel("Number of Variants")
+    ax.set_ylabel("Allele Freq.")
+    ax.legend(title="Primary coupling")
+
+    fig.tight_layout()
+    fig.savefig("./figures/3c_contacts.pdf")
+    plt.close(fig)       
 
     # Fig. S3c
     fig, axes = plt.subplots(len(GproteinCoupling), 1, figsize=(4, 5), dpi=300)
@@ -287,6 +319,6 @@ def analyze_G_protein_contact_positions():
     fig.savefig("./figures/S3c_contacts.pdf")
 
 if __name__ == '__main__':
-    analyze_positions()
-    analyze_arginine_3x50()
+    # analyze_positions()
+    # analyze_arginine_3x50()
     analyze_G_protein_contact_positions()

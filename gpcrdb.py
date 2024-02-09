@@ -140,7 +140,7 @@ def _get_primary_coupling(force=False):
     html = os.path.join("data", "couplings.html")
     csv = os.path.join("data", "couplings.csv")
 
-    if os.path.exists(html) or force is True:
+    if not os.path.exists(html) or force is True:
         uri = "https://gproteindb.org/signprot/couplings#"
         r = requests.get(uri)
 
