@@ -297,7 +297,7 @@ def analyze_G_protein_contact_positions():
     plt.close(fig)       
 
     # Fig. S3c
-    fig, axes = plt.subplots(len(GproteinCoupling), 1, figsize=(4, 5), dpi=300)
+    fig, axes = plt.subplots(len(GproteinCoupling), 1, figsize=(5, 5), dpi=300)
 
     for ax, g in zip(axes, GproteinCoupling):
         left = 0
@@ -319,6 +319,6 @@ def analyze_G_protein_contact_positions():
     fig.savefig("./figures/S3c_contacts.pdf")
 
 if __name__ == '__main__':
-    # analyze_positions()
-    # analyze_arginine_3x50()
+    analyze_positions()
+    analyze_arginine_3x50()
     analyze_G_protein_contact_positions()
