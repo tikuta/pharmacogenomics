@@ -276,7 +276,7 @@ def analyze_G_protein_contact_positions():
     data = [sum([[d['annotation'].snv.AF for d in annos] for gn, annos in anno_by_coupling[g].items() if gn in gs_gi_gq], []) for g in GproteinCoupling]
     labels = [g.value for g in GproteinCoupling]
     colors = [g.color for g in GproteinCoupling]
-    _, bins, _ = ax.hist(data, bins=20, range=(0, 1), label=labels, color=colors, stacked=True, edgecolor='k', lw=0.5, orientation='horizontal')
+    ax.hist(data, bins=20, range=(0, 1), label=labels, color=colors, stacked=True, edgecolor='k', lw=0.5, orientation='horizontal')
     for g in GproteinCoupling:
         for gn, annos in anno_by_coupling[g].items():
             if gn not in gs_gi_gq:
