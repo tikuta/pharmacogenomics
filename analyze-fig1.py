@@ -235,7 +235,7 @@ def analyze_segment_ratio(filename_A, filename_B):
             if x == 0:
                 ax.set_ylabel("Number of GPCRs")
             if y == 3:
-                ax.set_xlabel("Number of residues")
+                ax.set_xlabel("Number of residues [aa]")
     fig.tight_layout()
     fig.savefig(filename_B)
 
