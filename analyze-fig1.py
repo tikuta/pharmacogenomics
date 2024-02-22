@@ -4,6 +4,7 @@ import vcf
 import gpcrdb
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rc('pdf', fonttype=42)
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import numpy as np
@@ -11,8 +12,9 @@ from utils import VariationType, Segment
 import ensembl
 import json
 
-def analyze_calls():
+def analyze_calls(filename):
     num_cds, num_gene = 0, 0
+    num_missense, num_silent, num_nonsense = 0, 0, 0
     for receptor in gpcrdb.get_filtered_receptor_list():
         calls_gene = set()
         with open(receptor.japan_gene_vcf_path) as f:
@@ -36,24 +38,6 @@ def analyze_calls():
         num_cds += len(calls_cds)
         num_gene += len(calls_gene)
 
-    fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
-
-    ax.barh(0, num_cds, color='tab:orange')
-    coding_text = "Coding region\n{:,} calls ({:.1f}%)".format(num_cds, num_cds / num_gene * 100)
-    ax.text(num_cds / 2, -0.45, coding_text, ha='center', va='top', size=12)
-
-    ax.barh(0, num_gene - num_cds, left=num_cds, color='tab:gray', alpha=0.6)
-    non_coding_text = "Non-coding region\n{:,} calls ({:.1f}%)".format(num_gene - num_cds, (num_gene - num_cds) / num_gene * 100)
-    ax.text((num_gene - num_cds) / 2, 0, non_coding_text, ha='center', va='center', size=12)
-
-    ax.set_xlim(0, num_gene)
-    ax.set_axis_off()
-    fig.tight_layout()
-    fig.savefig("./figures/S1a_calls.pdf")
-
-def analyze_var_type():
-    num_missense, num_silent, num_nonsense = 0, 0, 0
-    for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.japan_cds_csv_path) as f:
             for l in f.readlines():
                 try:
@@ -67,28 +51,43 @@ def analyze_var_type():
                 except ensembl.BlankLineError:
                     continue
 
-    total = num_missense + num_silent + num_nonsense
+    fig, axes = plt.subplots(1, 2, figsize=(8, 2), dpi=300, sharey=True)
 
-    fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
+    ax = axes[0]
+    num_gene_only = num_gene - num_cds
+    ax.barh(0, num_gene_only, color='tab:gray', alpha=0.6)
+    non_coding_text = "Non-coding region\n{:,} calls ({:.1f}%)".format(num_gene_only, num_gene_only / num_gene * 100)
+    ax.text(num_gene_only / 2, 0, non_coding_text, ha='center', va='center')
+
+    ax.barh(0, num_cds, left=num_gene_only, color='tab:orange')
+    coding_text = "Coding region\n{:,} calls\n({:.1f}%)".format(num_cds, num_cds / num_gene * 100)
+    ax.text(num_gene + num_cds / 2, -0.45, coding_text, ha='center', va='top')
+
+    ax.set_xlim(0, num_gene)
+    ax.set_axis_off()
+
+    ax = axes[1]
+    total = num_missense + num_silent + num_nonsense
 
     ax.barh(0, num_missense, color='tab:orange')
     missense_text = "Missense\n{:,} SNVs\n({:.1f}%)".format(num_missense, num_missense / total * 100)
-    ax.text(num_missense / 2, 0, missense_text, ha='center', va='center', size=12)
+    ax.text(num_missense / 2, 0, missense_text, ha='center', va='center')
 
     ax.barh(0, num_silent, left=num_missense, color='tab:gray', alpha=0.6)
     silent_text = "Silent\n{:,} SNVs\n({:.1f}%)".format(num_silent, num_silent / total * 100)
-    ax.text(num_missense + num_silent / 2, 0, silent_text, ha='center', va='center', size=12)
+    ax.text(num_missense + num_silent / 2, 0, silent_text, ha='center', va='center')
 
     ax.barh(0, num_nonsense, left=num_missense + num_silent, color='tab:gray')
     nonsense_text = "Nonsense\n{:,} SNVs\n({:.1f}%)".format(num_nonsense, num_nonsense / total * 100)
-    ax.text(num_missense + num_silent + num_nonsense / 2, -0.45, nonsense_text, ha='center', va='top', size=12)
+    ax.text(num_missense + num_silent + num_nonsense / 2, -0.45, nonsense_text, ha='center', va='top')
 
     ax.set_xlim(0, total)
     ax.set_axis_off()
-    fig.tight_layout()
-    fig.savefig("./figures/1a_var_type.pdf")
 
-def analyze_var_seg():
+    fig.tight_layout()
+    fig.savefig(filename)
+
+def analyze_var_seg(filename):
     seg_missense, seg_silent, seg_nonsense = {}, {}, {}
     for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.japan_cds_csv_path) as f:
@@ -145,11 +144,10 @@ def analyze_var_seg():
     ax.set_yticklabels(["Nonsense", "Silent", "Missense"])
     ax.set_xlabel("SNVs [%]")
     fig.tight_layout()
-    fig.savefig("./figures/1b_var_seg_percent.pdf")
+    fig.savefig(filename)
 
-def analyze_segment_ratio():
-    residue_counts_A = {seg: [] for seg in Segment}
-    residue_counts_nonA = {seg: [] for seg in Segment}
+def analyze_segment_ratio(filename_A, filename_B):
+    residue_counts = {}
     for receptor in gpcrdb.get_filtered_receptor_list():
         counts = {seg: 0 for seg in Segment}
         with open(receptor.alignment_path) as f:
@@ -159,12 +157,53 @@ def analyze_segment_ratio():
                 cols = l.split(',')
                 seg = Segment.value_of(cols[1])
                 counts[seg] = counts.get(seg, 0) + 1
+
+        d = residue_counts.get(receptor.receptor_class, {seg: [] for seg in Segment})
         for seg in Segment:
-            if receptor.receptor_class == 'Class A (Rhodopsin)':
-                residue_counts_A[seg].append(counts[seg])
-            else:
-                residue_counts_nonA[seg].append(counts[seg])
+            d[seg].append(counts[seg])
+        residue_counts[receptor.receptor_class] = d
+
+    receptor_classes = sorted(residue_counts.keys(), reverse=True)
     
+    fig, ax = plt.subplots(1, 1, figsize=(3, 4), dpi=300)
+
+    ticklabels = []
+    for y, family in enumerate(receptor_classes):
+        left = 0
+        total = sum([sum(residue_counts[family][seg]) for seg in Segment])
+        num = max([len(residue_counts[family][seg]) for seg in Segment])
+        family_label = "Family " + family.split(' ')[1] if family.startswith('Class') else "Others"
+        ticklabels.append(family_label + "\nn = {}".format(num))
+
+        for seg in Segment:
+            width = sum(residue_counts[family][seg]) / total * 100
+            ax.barh(y, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
+            left += width
+
+    left = 0
+    total = sum([sum([sum(residue_counts[family][seg]) for seg in Segment]) for family in receptor_classes])
+    ticklabels.append("All")
+
+    for seg in Segment:
+        y = len(receptor_classes)
+        width = sum([sum(residue_counts[family][seg]) for family in receptor_classes]) / total * 100
+        ax.barh(y, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
+
+        if seg in Segment.TMs() or seg in Segment.terms():
+            if seg == Segment.TM1 or seg in Segment.terms():
+                ax.text(left + width / 2, y + 0.4, seg.value, ha='center', va='bottom', size=5)
+            else:
+                ax.text(left + width / 2, y + 0.4, seg.value[2], ha='center', va='bottom', size=5)
+        left += width
+
+    ax.set_xlabel("Segment fractions [%]")
+    ax.set_yticks(range(len(receptor_classes) + 1))
+    ax.set_yticklabels(ticklabels, size=8)
+    
+    fig.tight_layout()
+    fig.savefig(filename_A)
+    plt.close(fig)
+
     fig, axes = plt.subplots(4, 4, figsize=(8, 7), dpi=300, sharey=True)
     segments = [seg for seg in Segment if seg != Segment.ICL4]
 
@@ -173,13 +212,15 @@ def analyze_segment_ratio():
             ax = axes[y][x]
             seg = segments[4 * y + x]
 
-            values = residue_counts_A[seg] + residue_counts_nonA[seg]
+            values = sum([by_family[seg] for by_family in residue_counts.values()], [])
             bins = 20
             edges = (20, 60)
-            if np.min(values) < edges[0] or edges[1] < np.max(values):
+            if min(values) < edges[0] or edges[1] < max(values):
                 edges = None
 
-            ax.hist([residue_counts_A[seg], residue_counts_nonA[seg]], bins=bins, range=edges, color=[seg.color, 'lightgray'], stacked=True)
+            data_A = residue_counts['Class A (Rhodopsin)'][seg]
+            data_nonA = sum([residue_counts[family][seg] for family in residue_counts.keys() if family != 'Class A (Rhodopsin)'], [])
+            ax.hist([data_A, data_nonA], bins=bins, range=edges, color=[seg.color, 'lightgray'], stacked=True)
             median = np.median(values)
             ax.axvline(median, color='k', lw=1)
             ax2 = ax.twiny()
@@ -194,11 +235,11 @@ def analyze_segment_ratio():
             if x == 0:
                 ax.set_ylabel("Number of GPCRs")
             if y == 3:
-                ax.set_xlabel("Number of residues\n[amino acids]")
+                ax.set_xlabel("Number of residues")
     fig.tight_layout()
-    fig.savefig("./figures/S1c_residue_count.pdf")
+    fig.savefig(filename_B)
 
-def analyze_gene_stats():
+def analyze_gene_stats(filename):
     gene_lengths_A, gene_lengths_nonA = [], []
     transcipt_lengths_A, transcipt_lengths_nonA = [], []
     exon_numbers_A, exon_numbers_nonA = [], []
@@ -234,7 +275,7 @@ def analyze_gene_stats():
     
     ax = axes[0][0]
     ax.hist([np.log10(gene_lengths_A), np.log10(gene_lengths_nonA)], bins=40, color=colors, label=labels, stacked=True)
-    ax.set_xlabel("Gene length [nucleotides]")
+    ax.set_xlabel("Gene length [nt]")
     xrange = np.arange(3, 7)
     ax.set_xticks(xrange)
     ax.set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
@@ -249,7 +290,7 @@ def analyze_gene_stats():
 
     ax = axes[1][0]
     ax.hist([np.log10(transcipt_lengths_A), np.log10(transcipt_lengths_nonA)], bins=40, color=colors, label=labels, stacked=True)
-    ax.set_xlabel("Canonical transcript length\n[nucleotides]")
+    ax.set_xlabel("Transcript length [nt]")
     xrange = np.arange(3, 4.5, 0.5)
     ax.set_xticks(xrange)
     ax.set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
@@ -277,7 +318,7 @@ def analyze_gene_stats():
     
     ax = axes[1][1]
     ax.hist([np.log10(translation_lengths_A), np.log10(translation_lengths_nonA)], bins=40, color=colors, label=labels, stacked=True)
-    ax.set_xlabel("Canonical translation length\n[amino acids]")
+    ax.set_xlabel("Translation length [aa]")
     xrange = np.arange(2.5, 4, 0.5)
     ax.set_xticks(xrange)
     ax.set_xticklabels([f"10$^{{{v}}}$" for v in xrange])
@@ -291,11 +332,10 @@ def analyze_gene_stats():
     ax.set_yscale('log')
 
     fig.tight_layout()
-    fig.savefig("./figures/S1a_stats.pdf")
+    fig.savefig(filename)
 
 if __name__ == '__main__':
-    analyze_calls()
-    analyze_var_type()
-    analyze_var_seg()
-    analyze_gene_stats()
-    analyze_segment_ratio()
+    analyze_calls("./figures/1ab_variations.pdf")
+    analyze_var_seg("./figures/1d_var_seg_percent.pdf")
+    analyze_gene_stats("./figures/S1a_stats.pdf")
+    analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")
