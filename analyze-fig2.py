@@ -2,13 +2,14 @@
 import gpcrdb
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rc('pdf', fonttype=42)
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import ensembl
 from utils import VariationType, Segment
 import json
 
-def analyze_high_allele_freq_vars():
+def analyze_high_allele_freq_vars(filename_A, filename_B):
     high_frequent_vars = []
     for receptor in gpcrdb.get_filtered_receptor_list():
         with open(receptor.ensembl_path) as f:
@@ -65,7 +66,7 @@ def analyze_high_allele_freq_vars():
     ax.set_yticklabels([])
     ax.set_xlabel("Number of Missense Variants (AF > 0.5)")
     fig.tight_layout()
-    fig.savefig("./figures/2a_high_allele_freq_vars.pdf")
+    fig.savefig(filename_A)
     plt.close(fig)
 
     # Fig. 2b
@@ -103,7 +104,7 @@ def analyze_high_allele_freq_vars():
     ax.set_xticklabels([0.5, 0.6, 0.8, 1.0])
     ax.set_xlim(left=0.5, right=1.1)
     fig.tight_layout()
-    fig.savefig("./figures/2b_high_allele_freq_vars.pdf")
+    fig.savefig(filename_B)
 
 def _is_N_glycosylation_motif(triplet):
     assert(len(triplet) == 3)
@@ -113,7 +114,7 @@ def _is_N_glycosylation_motif(triplet):
         return True
     return False
 
-def analyze_terminal_regions():
+def analyze_terminal_regions(filename):
     n_glyco_gain, n_glyco_loss = [], []
     o_glyco_gain, o_glyco_loss = [], []
     phospho_gain, phospho_loss = [], []
@@ -136,7 +137,7 @@ def analyze_terminal_regions():
                 assert(seq[anno.residue_number - 1] == anno.ref_aa)
                 
                 # Check glycosylation
-                if anno.segment == Segment.Nterm:    
+                if anno.segment in (Segment.Nterm, Segment.ECL1, Segment.ECL2, Segment.ECL3):    
                     # N-glycosylation
                     if 0 <= anno.residue_number - 3 and anno.residue_number <= len(seq):
                         ref_leading_triplet = seq[anno.residue_number - 3:anno.residue_number]
@@ -187,7 +188,7 @@ def analyze_terminal_regions():
                         # Gain
                         o_glyco_gain.append({"display_name": display_name, "annotation": anno})
                 # Check phosphorylation
-                if anno.segment == Segment.Cterm:
+                if anno.segment in (Segment.Cterm, Segment.ICL1, Segment.ICL2, Segment.ICL3, Segment.ICL4):
                     if anno.ref_aa in 'ST' and anno.alt_aa not in 'ST':
                         # Loss
                         phospho_loss.append({"display_name": display_name, "annotation": anno})
@@ -211,38 +212,37 @@ def analyze_terminal_regions():
     ax = axes[0]
     n_glyco = [[d['annotation'].snv.AF for d in n_glyco_gain], [d['annotation'].snv.AF for d in n_glyco_loss]]
     ax.hist(n_glyco, bins=10, range=(0.5, 1), stacked=True, label=["Gain", "Loss"], orientation='horizontal',
-            color=[Segment.Nterm.color, 'white'], edgecolor=Segment.Nterm.color)
+            color=['tab:orange', 'tab:gray'])
     ax.set_title("N-glycosylation (Asn-X-Ser/Thr)") 
     for glyco in n_glyco_gain + n_glyco_loss:
         anno = glyco['annotation']
-        label = "{} {}{}{} ({}$\\rightarrow${})".format(glyco['display_name'], anno.ref_aa, anno.residue_number, anno.alt_aa,
-                                              glyco['ref_motif'], glyco['alt_motif'])
-        ranges = [[0.8, 0.85], [0.85, 0.9], [0.9, 0.95], [0.95, 1]]
-        for r in ranges:
-            if r[0] < anno.snv.AF <= r[1]:
-                ax.text(1, (r[0] + r[1]) / 2, " " + label, ha='left', va='center', size=9)
-    ax.legend(loc='lower right', ncol=2)
+        from_to_label = "({}$\\rightarrow${})".format(glyco['ref_motif'], glyco['alt_motif'])
+        label = "{} {}{}{} {}".format(glyco['display_name'], anno.ref_aa, anno.residue_number, anno.alt_aa, from_to_label)
+        for r in range(50, 100, 5):
+            bottom, top = r / 100, r / 100 + 0.05
+            if bottom < anno.snv.AF <= top:
+                ax.text(1, (bottom + top) / 2 - 0.005, " " + label, ha='left', va='center', size=9)
 
     ax = axes[1]
     o_glyco = [[d['annotation'].snv.AF for d in o_glyco_gain], [d['annotation'].snv.AF for d in o_glyco_loss]]
     ax.hist(o_glyco, bins=10, range=(0.5, 1), stacked=True, label=["Gain", "Loss"], orientation='horizontal',
-            color=[Segment.Nterm.color, 'white'], edgecolor=Segment.Nterm.color)
+            color=['tab:orange', 'tab:gray'])
     ax.set_title("O-glycosylation (Ser/Thr)")
     
     ax = axes[2]
     phospho = [[d['annotation'].snv.AF for d in phospho_gain], [d['annotation'].snv.AF for d in phospho_loss]]
     ax.hist(phospho, bins=10, range=(0.5, 1), stacked=True, label=["Gain", "Loss"], orientation='horizontal',
-            color=[Segment.Cterm.color, 'white'], edgecolor=Segment.Cterm.color)
+            color=['tab:orange', 'tab:gray'])
     ax.set_title("Phosphorylation (Ser/Thr)")
     ax.legend(loc='lower right', ncol=2)
-    ax.set_xticks(range(5))
-    ax.set_xticklabels(range(5))
+    ax.set_xticks(range(6))
+    ax.set_xticklabels(range(6))
     ax.set_xlabel("Number of Variants")
 
     fig.tight_layout()    
-    fig.savefig("./figures/2c_term.pdf")
+    fig.savefig(filename)
 
-def analyze_nonterminal_regions():
+def analyze_nonterminal_regions(filename):
     nonterminal = []
     for receptor in gpcrdb.get_filtered_receptor_list():
         # Generic number system is consistent only within the same class.
@@ -308,10 +308,10 @@ def analyze_nonterminal_regions():
         commands.append("select {}_{}, resi {}".format(r, gn, r[1:]))
         commands.append("show spheres, {} and name CA".format(r))
         commands.append("color {}, {} and name CA".format(c, r))
-    with open("./figures/2f_pymol_commands.pml", 'w') as f:
+    with open(filename, 'w') as f:
         f.write('\n'.join(commands))
 
 if __name__ == '__main__':
-    analyze_high_allele_freq_vars()
-    analyze_terminal_regions()
-    analyze_nonterminal_regions()
+    analyze_high_allele_freq_vars("./figures/2a_high_allele_freq_vars.pdf", "./figures/2b_high_allele_freq_vars.pdf")
+    analyze_terminal_regions("./figures/2cde_ptm.pdf")
+    analyze_nonterminal_regions("./figures/2f_pymol_commands.pml")
