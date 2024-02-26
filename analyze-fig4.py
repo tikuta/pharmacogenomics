@@ -11,7 +11,7 @@ import ensembl
 import json
 from config import AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC
 
-def analyze_jpn_vs_global():
+def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D):
     jpn_vars = {}
     global_vars = {}
     for receptor in gpcrdb.get_filtered_receptor_list():
@@ -87,7 +87,7 @@ def analyze_jpn_vs_global():
             substitution = "{}{}$^{{{}}}${}".format(anno.ref_aa, anno.residue_number, superscript, anno.alt_aa)
             notables.append([display_name, substitution, anno.pathogenicity, *freqs])
 
-    with open("./figures/4b_notables.csv", 'w') as f:
+    with open(filename_A, 'w') as f:
         f.write('\n'.join([','.join([str(v) for v in l]) for l in notables]))
 
     ax.legend()
@@ -103,7 +103,7 @@ def analyze_jpn_vs_global():
     ax.set_xlabel("Allele Freq. in 54KJPN")
     ax.set_ylabel("Allele Freq. in 1KGP")
     fig.tight_layout()
-    fig.savefig("./figures/4a_jpn_vs_global.pdf")
+    fig.savefig(filename_B)
     plt.close(fig)
 
     # Fig. S4a
@@ -129,7 +129,7 @@ def analyze_jpn_vs_global():
                 substitution = "{}{}$^{{{}}}${}".format(anno.ref_aa, anno.residue_number, superscript, anno.alt_aa)
                 notables.append([display_name, substitution, anno.pathogenicity, *freqs])
 
-    with open("./figures/S4a_notables.csv", 'w') as f:
+    with open(filename_C, 'w') as f:
         f.write('\n'.join([','.join([str(v) for v in l]) for l in notables]))
 
     ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
@@ -145,8 +145,8 @@ def analyze_jpn_vs_global():
     ax.set_xlabel("Allele Freq. in 54KJPN")
     ax.set_ylabel("Allele Freq. in 1KGP")
     fig.tight_layout()
-    fig.savefig("./figures/S4a_jpn_vs_global.pdf")
+    fig.savefig(filename_D)
     plt.close(fig)
 
 if __name__ == '__main__':
-    analyze_jpn_vs_global()
+    analyze_jpn_vs_global("./figures/4b_notables.csv", "./figures/4a_jpn_vs_global.pdf", "./figures/S4a_notables.csv", "./figures/S4a_jpn_vs_global.pdf")
