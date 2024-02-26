@@ -2,13 +2,14 @@
 import gpcrdb
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rc('pdf', fonttype=42)
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 import ensembl
 from utils import VariationType, Segment, GproteinCoupling
 import json
 
-def analyze_positions():
+def analyze_positions(filename):
     assigned = {}
     found = {}
     for receptor in gpcrdb.get_filtered_receptor_list():
@@ -74,17 +75,14 @@ def analyze_positions():
     ax.set_xticks([0, 50, 100, 150, 200, 250, num_receptors])
     ax.set_xticklabels([0, 50, 100, 150, 200, 250, num_receptors])
     fig.tight_layout()
-    fig.savefig("./figures/3a_positions.pdf")
+    fig.savefig(filename)
 
-def analyze_arginine_3x50():
+def analyze_arginine_3x50(filename):
     roi = "3x50"
 
-    family_stats = {}
     aa_stats = {}
     codon_stats = {}
     for receptor in gpcrdb.get_filtered_receptor_list():
-        family_stats[receptor.receptor_class] = family_stats.get(receptor.receptor_class, 0) + 1
-
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue
 
@@ -108,20 +106,7 @@ def analyze_arginine_3x50():
                             codon = json.load(j)['canonical_cds'][res_num * 3 - 3: res_num * 3]
                             codon_stats[codon] = codon_stats.get(codon, 0) + 1
     
-    fig, ax = plt.subplots(1, 1, figsize=(8, 2), dpi=300)
-
-    left = 0
-    for family in sorted(family_stats.keys()):
-        delta = family_stats[family]
-        color = 'tab:orange' if family == 'Class A (Rhodopsin)' else 'lightgray'
-        ax.barh(2, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
-        if family == 'Class A (Rhodopsin)':
-            ax.text(left + delta / 2, 2, "Family A\n({})".format(delta), ha='center', va='center', size=6)
-        elif family.startswith("Class"):
-            family_name = family.split(" ")[1]
-            ax.text(left + delta / 2, 2, "{}\n({})".format(family_name, delta), ha='center', va='center', size=6)
-        left += delta
-    total_receptors = left
+    fig, ax = plt.subplots(1, 1, figsize=(8, 1.5), dpi=300)
 
     left = 0
     for aa in sorted(aa_stats.keys(), key=lambda aa:aa_stats[aa], reverse=True):
@@ -131,6 +116,7 @@ def analyze_arginine_3x50():
         if aa == 'R':
             ax.text(left + delta / 2, 1, "Arg\n({})".format(delta), ha='center', va='center', size=6)
         left += delta
+    total_receptors = left
     
     left = 0
     for codon in sorted(codon_stats.keys(), key=lambda codon: ('CG' not in codon, -codon_stats[codon])):
@@ -143,15 +129,15 @@ def analyze_arginine_3x50():
     ax.set_xlim(0, total_receptors)
     ax.set_xticks([total_receptors], minor=True)
     ax.set_xticklabels([total_receptors], minor=True)
-    ax.set_xlabel("Number of GPCRs")
+    ax.set_xlabel("Number of Family A GPCRs")
 
-    ax.set_yticks([0, 1, 2])
-    ax.set_yticklabels(['3x50 Codon', '3x50 AA', "GPCRs"])
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(['3x50 Codon', '3x50 AA'])
     
     fig.tight_layout()
-    fig.savefig("./figures/S3a_arginine_3x50.pdf")
+    fig.savefig(filename)
 
-def analyze_G_protein_contact_positions():
+def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
     # See the following reference for detail
     # https://doi.org/10.1038/s41467-022-34055-5
     common_residues = {"3x50", "3x53", "3x54", "34x50", "34x51", "34x55", "5x65", "5x68", "6x32", "6x33", "6x36", "6x37", "7x56", "8x47"}
@@ -236,7 +222,7 @@ def analyze_G_protein_contact_positions():
    137.008300781,  176.940826416,  -20.000000000 )""")
     commands.append("scene cavity, store")
 
-    with open("./figures/3b_pymol_commands.pml", 'w') as f:
+    with open(filename_A, 'w') as f:
         f.write('\n'.join(commands))
 
     anno_by_coupling = {primary: {gn: [] for gn in roi} for primary in GproteinCoupling}
@@ -293,32 +279,33 @@ def analyze_G_protein_contact_positions():
     ax.legend(title="Primary coupling")
 
     fig.tight_layout()
-    fig.savefig("./figures/3c_contacts.pdf")
+    fig.savefig(filename_B)
     plt.close(fig)       
 
     # Fig. S3c
-    fig, axes = plt.subplots(len(GproteinCoupling), 1, figsize=(5, 5), dpi=300)
+    fig, axes = plt.subplots(len(GproteinCoupling), 1, figsize=(5, 4.5), dpi=300)
 
     for ax, g in zip(axes, GproteinCoupling):
         left = 0
         for residues in matplot_colormap.keys():
             delta = sum([len(anno_by_coupling[g][gn]) for gn in residues])
-            ax.barh(0, delta, left=left, color=matplot_colormap[residues])
+            ax.barh(0, delta, left=left, height=1, color=matplot_colormap[residues])
             left += delta
         ax.set_xlim(0, left)
         ax2 = ax.twiny()
         ax2.set_xticks([left])
         ax2.set_xticklabels([left])
         ax.set_yticks([0])
-        ax.set_yticklabels(["{}\n(n = {})".format(g.value, number_of_receptors[g])])
+        ax.set_yticklabels(["{}\n($n={}$)".format(g.value, number_of_receptors[g])])
+        ax.set_ylim(-0.5, 0.5)
         if g == GproteinCoupling.Gq11:
             ax.set_ylabel("Primary coupling")
     axes[-1].set_xlabel("Number of Variants")
 
     fig.tight_layout()
-    fig.savefig("./figures/S3c_contacts.pdf")
+    fig.savefig(filename_C)
 
 if __name__ == '__main__':
-    analyze_positions()
-    analyze_arginine_3x50()
-    analyze_G_protein_contact_positions()
+    analyze_positions("./figures/3a_positions.pdf")
+    analyze_arginine_3x50("./figures/S3a_arginine_3x50.pdf")
+    analyze_G_protein_contact_positions("./figures/3b_pymol_commands.pml", "./figures/3c_contacts.pdf", "./figures/S3c_contacts.pdf")
