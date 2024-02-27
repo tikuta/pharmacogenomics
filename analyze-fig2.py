@@ -296,14 +296,16 @@ def analyze_nonterminal_regions(filename):
                 print("{} ({})".format(cols[0], structure_based_number))
 
     # Write PyMOL commands
-    commands = ["fetch 3sn6R", "hide everything", "show cartoon, resi 1-400", "color gray90, elem C", "bg_color white"]
+    commands = ["load https://opm-assets.storage.googleapis.com/pdb/3sn6.pdb", "remove chain A+B+G+N", "hide everything"]
+    commands += ["show spheres, resn DUM", "color gray50, resn DUM", "set sphere_scale, 0.1, resn DUM"]
+    commands += ["show cartoon, resi 1-400", "color gray90, elem C", "bg_color white"]
     commands.append("""set_view (\
-     0.995574713,    0.004649362,   -0.093772046,\
-     0.093761533,    0.002609347,    0.995587170,\
-     0.004873949,   -0.999971628,    0.002162045,\
-    -0.000329998,    0.000011437, -200.369766235,\
-    19.015455246,   12.105808258,    5.394354820,\
-   162.227340698,  238.521606445,  -20.000000000 )""")
+     0.023613820,   -0.006613106,    0.999683261,\
+     0.999707758,    0.004089679,   -0.023586458,\
+    -0.003932271,    0.999952376,    0.006706934,\
+     0.000007592,    0.000207097, -329.484893799,\
+    -4.564888000,   -0.986666739,   -5.704017639,\
+   249.196655273,  409.797607422,  -20.000000000 )""")
     for r, c, gn in zip(residues, colors, gen_nums):
         commands.append("select {}_{}, resi {}".format(r, gn, r[1:]))
         commands.append("show spheres, {} and name CA".format(r))
@@ -311,7 +313,23 @@ def analyze_nonterminal_regions(filename):
     with open(filename, 'w') as f:
         f.write('\n'.join(commands))
 
+def visualize_ptgdr2_v204a(filename):
+    commands = ["load https://opm-assets.storage.googleapis.com/pdb/6d26.pdb", "remove resi 1238-1362", "hide everything"]
+    commands += ["show spheres, resn DUM", "color gray50, resn DUM", "set sphere_scale, 0.1, resn DUM"]
+    commands += ["show cartoon, polymer", "color gray90, elem C", "bg_color white"]
+    commands += ["show sticks, resi 204 and not name C+N+O", "color yelloworange, resi 204 and elem C"]
+    commands.append("""set_view (\
+     0.999601483,    0.023199057,    0.014749675,\
+     0.014575680,    0.007802706,   -0.999853611,\
+    -0.023312025,    0.999673069,    0.007462042,\
+    -0.000005939,    0.000136152, -242.724426270,\
+     0.188465744,   -0.155589461,   -2.518058062,\
+   162.436721802,  323.037689209,  -20.000000000 )""")
+    with open(filename, 'w') as f:
+        f.write('\n'.join(commands))
+
 if __name__ == '__main__':
     analyze_high_allele_freq_vars("./figures/2a_high_allele_freq_vars.pdf", "./figures/2b_high_allele_freq_vars.pdf")
     analyze_terminal_regions("./figures/2cde_ptm.pdf")
     analyze_nonterminal_regions("./figures/2f_pymol_commands.pml")
+    visualize_ptgdr2_v204a("./figures/S2c_pymol_commands.pml")
