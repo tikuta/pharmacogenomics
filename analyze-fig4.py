@@ -3,6 +3,7 @@ import gpcrdb
 import matplotlib
 matplotlib.rc('pdf', fonttype=42)
 matplotlib.use('Agg')
+from matplotlib import patches
 import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = "Arial"
 from utils import VariationType
@@ -11,7 +12,7 @@ import ensembl
 import json
 from config import AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC
 
-def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D):
+def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filename_E):
     jpn_vars = {}
     global_vars = {}
     for receptor in gpcrdb.get_filtered_receptor_list():
@@ -76,6 +77,29 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D):
     ax.scatter(*np.array(frequent_likely_benign_freqs).T, marker='.', color='tab:gray', label="likely benign", zorder=1)
     ax.scatter(*np.array(frequent_ambigous_freqs).T, marker='.', color='tab:orange', label="ambigous", zorder=10)
     ax.scatter(*np.array(frequent_likely_pathogenic_freqs).T, marker='D', s=10, color='tab:orange', label="likely pathogenic", zorder=100)
+
+    # Japanese-specific variants
+    jpn_freq_threshold, global_freq_threshold = 0.25, 0.015
+    x, y = jpn_freq_threshold, -global_freq_threshold
+    w, h = 1 - jpn_freq_threshold + 0.015, global_freq_threshold * 2
+    r = patches.Rectangle(xy=(x, y), width=w, height=h, ec='tab:gray', fill=False, zorder=-1, lw=0.6)
+    ax.add_patch(r)
+    ax.text(1, global_freq_threshold, "Table S1", color='tab:gray', ha='right', va='bottom')
+
+    lines = []
+    for k in all_var_keys:
+        jpn_var, global_var = jpn_vars.get(k, None), global_vars.get(k, None)
+        jpn_freq, global_freq = jpn_var.snv.AF if jpn_var else 0, global_var.snv.AF if global_var else 0
+        if jpn_freq > jpn_freq_threshold and global_freq < global_freq_threshold:
+            display_name = k[0]
+            superscript = jpn_var.generic_number if jpn_var.generic_number else jpn_var.segment
+            substitution = "{}{}^{{{}}}{}".format(jpn_var.ref_aa, jpn_var.residue_number, superscript, jpn_var.alt_aa)
+            cols = [display_name, substitution, jpn_var.snv.rsid, jpn_freq, global_freq]
+            lines.append(cols)
+    lines.sort(key=lambda l: float(l[3]), reverse=True)
+    with open(filename_E, 'w') as f:
+        f.write(",".join(["#GPCR", "Substitution", "rsID", "AF_jpn", "AF_global"]) + "\n")
+        f.write('\n'.join([",".join([str(v) for v in l]) for l in lines]))
 
     notables = []
     for k in likely_pathogenic_keys + ambigous_keys:
@@ -149,4 +173,6 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D):
     plt.close(fig)
 
 if __name__ == '__main__':
-    analyze_jpn_vs_global("./figures/4b_notables.csv", "./figures/4a_jpn_vs_global.pdf", "./figures/S4a_notables.csv", "./figures/S4a_jpn_vs_global.pdf")
+    analyze_jpn_vs_global("./figures/4b_notables.csv", "./figures/4a_jpn_vs_global.pdf", 
+                          "./figures/S4a_notables.csv", "./figures/S4a_jpn_vs_global.pdf",
+                          "./figures/TableS1_japanese_specifics.csv")
