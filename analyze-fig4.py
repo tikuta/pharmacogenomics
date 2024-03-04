@@ -12,7 +12,7 @@ import ensembl
 import json
 from config import AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC
 
-def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filename_E):
+def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filename_E, filename_F):
     jpn_vars = {}
     global_vars = {}
     for receptor in gpcrdb.get_filtered_receptor_list():
@@ -60,15 +60,11 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
     likely_benign_freqs = {k: (jpn_vars[k].snv.AF if k in jpn_vars.keys() else 0, global_vars[k].snv.AF if k in global_vars.keys() else 0) for k in likely_benign_keys}
 
     # For Fig. 4a
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4), dpi=300)
+    fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=300)
 
     ax.fill_between([-1, 2], [-0.75, 2.25], [-1.25, 1.75], color='lightgray', lw=0, alpha=0.8, zorder=-1000)
     ax.fill_between([-1, 2], [-0.5, 2.5], [-1.5, 1.5], color='lightgray', lw=0, alpha=0.6, zorder=-900)
     ax.fill_between([-1, 2], [-0.25, 2.75], [-1.75, 1.25], color='lightgray', lw=0, alpha=0.4, zorder=-800)
-
-    # AF <= 0.25 will be plotted in another fig
-    ax.fill_between([0, 0.25], [0, 0], [0.25, 0.25], color='white', lw=0, zorder=-600)
-    ax.text(0.125, 0.125, "Fig. S4a", va='center', ha='center', color='lightgray', zorder=-500)
 
     # Plot only AF > 0.25
     frequent_likely_benign_freqs = [freqs for freqs in likely_benign_freqs.values() if freqs[0] > 0.25 or freqs[1] > 0.25]
@@ -77,6 +73,12 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
     ax.scatter(*np.array(frequent_likely_benign_freqs).T, marker='.', color='tab:gray', label="likely benign", zorder=1)
     ax.scatter(*np.array(frequent_ambigous_freqs).T, marker='.', color='tab:orange', label="ambigous", zorder=10)
     ax.scatter(*np.array(frequent_likely_pathogenic_freqs).T, marker='D', s=10, color='tab:orange', label="likely pathogenic", zorder=100)
+
+    # AF <= 0.25 will be plotted in another fig
+    num_infrequent = len(all_var_keys) - len(frequent_ambigous_freqs) - len(frequent_likely_benign_freqs) - len(frequent_likely_pathogenic_freqs)
+    ax.fill_between([0, 0.25], [0, 0], [0.25, 0.25], color='white', lw=0, zorder=-600)
+    ax.text(0.125, 0.125, "Fig. S4a\n{:,} vars.".format(num_infrequent), va='center', ha='center', color='tab:gray', zorder=-500)
+    ax.text(0, 1, "Total {:,} vars. (incl. AF$\leq$0.25)".format(len(all_var_keys)), va='top', ha='left', color='tab:gray', zorder=-500)
 
     # Japanese-specific variants
     jpn_freq_threshold, global_freq_threshold = 0.25, 0.015
@@ -109,12 +111,12 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
             display_name = k[0]
             superscript = anno.generic_number if anno.generic_number else anno.segment
             substitution = "{}{}$^{{{}}}${}".format(anno.ref_aa, anno.residue_number, superscript, anno.alt_aa)
-            notables.append([display_name, substitution, anno.pathogenicity, *freqs])
-
+            notables.append([display_name, substitution, anno.snv.rsid, anno.pathogenicity, *freqs])
+    notables.sort(key=lambda n: n[5], reverse=True)
     with open(filename_A, 'w') as f:
         f.write('\n'.join([','.join([str(v) for v in l]) for l in notables]))
 
-    ax.legend()
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1), ncol=3)
     lims = (-0.02, 1.02)
     ticks = [0, 0.25, 0.5, 0.75, 1]
     ax.set_xlim(*lims)
@@ -131,7 +133,7 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
     plt.close(fig)
 
     # Fig. S4a
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4), dpi=300)
+    fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=300)
     ax.set_facecolor(color='#d4d4d4')
 
     # Plot only AF <= 0.25
@@ -151,12 +153,12 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
                 display_name = k[0]
                 superscript = anno.generic_number if anno.generic_number else anno.segment
                 substitution = "{}{}$^{{{}}}${}".format(anno.ref_aa, anno.residue_number, superscript, anno.alt_aa)
-                notables.append([display_name, substitution, anno.pathogenicity, *freqs])
-
+                notables.append([display_name, substitution, anno.snv.rsid, anno.pathogenicity, *freqs])
+    notables.sort(key=lambda n: n[5], reverse=True)
     with open(filename_C, 'w') as f:
         f.write('\n'.join([','.join([str(v) for v in l]) for l in notables]))
 
-    ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1), ncol=3)
     lims = (-0.01, 0.26)
     ticks = [0, 0.05, 0.1, 0.15, 0.2, 0.25]
     ax.set_xlim(*lims)
@@ -172,7 +174,29 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
     fig.savefig(filename_D)
     plt.close(fig)
 
+    # Fig. S4b
+    fig, ax = plt.subplots(1, 1, figsize=(4, 3), dpi=300)
+
+    ax.axhspan(AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC, color='lightgray')
+
+    xys = [(anno.snv.AF, anno.pathogenicity) for anno in jpn_vars.values()]
+    ax.scatter(*np.array(xys).T, marker='.', color='tab:gray')
+
+    ax.text(1.02, AM_THRESHOLD_BENIGN / 2, "likely benign", va='center', ha='left', rotation=90, color='tab:gray', size=8)
+    ax.text(1.02, (AM_THRESHOLD_BENIGN + AM_THRESHOLD_PATHOGENIC) / 2, "ambigous", va='center', ha='left', rotation=90, color='tab:gray', size=8)
+    ax.text(1.02, (AM_THRESHOLD_PATHOGENIC + 1) / 2, "likely pathogenic", va='center', ha='left', rotation=90, color='tab:gray', size=8)
+
+    ax.set_xlabel("Allel Freq. in 54KJPN")
+    ax.set_xlim(-0.02, 1.07)
+    ax.set_ylabel("Pathogenicity")
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_yticks([0, AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC, 1])
+    ax.set_yticklabels([0, AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC, 1])
+
+    fig.tight_layout()
+    fig.savefig(filename_F)
+
 if __name__ == '__main__':
-    analyze_jpn_vs_global("./figures/4b_notables.csv", "./figures/4a_jpn_vs_global.pdf", 
+    analyze_jpn_vs_global("./figures/4a_notables.csv", "./figures/4a_jpn_vs_global.pdf", 
                           "./figures/S4a_notables.csv", "./figures/S4a_jpn_vs_global.pdf",
-                          "./figures/TableS1_japanese_specifics.csv")
+                          "./figures/TableS1_japanese_specifics.csv", "./figures/S4c_freq_vs_pathogenicity.pdf")
