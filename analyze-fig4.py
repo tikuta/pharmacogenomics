@@ -198,5 +198,5 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
 
 if __name__ == '__main__':
     analyze_jpn_vs_global("./figures/4a_notables.csv", "./figures/4a_jpn_vs_global.pdf", 
-                          "./figures/S4a_notables.csv", "./figures/S4a_jpn_vs_global.pdf",
-                          "./figures/TableS1_japanese_specifics.csv", "./figures/S4c_freq_vs_pathogenicity.pdf")
+                          "./figures/S4a_notables.csv", "./figures/S4a_jpn_vs_global.png",
+                          "./figures/TableS1_japanese_specifics.csv", "./figures/S4c_freq_vs_pathogenicity.png")
