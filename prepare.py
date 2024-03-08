@@ -41,7 +41,7 @@ def main():
         "./data/1KGP/ALL.chrX.shapeit2_integrated_v1a.GRCh38.20181129.GRCh38.phased.vcf.gz",
     ]
 
-    #alphamissense.extract()
+    alphamissense.extract()
 
     for gpcrdb_entry in gpcrdb.get_filtered_receptor_list():
         print(gpcrdb_entry)
@@ -50,11 +50,11 @@ def main():
         ensembl_entry.visualize()
 
         gene_region = Region(ensembl_entry.region.chromosome, ensembl_entry.region.start, ensembl_entry.region.end)
-        vcf.filter_vcf(vcfs_jpn, [gene_region], gpcrdb_entry.japan_gene_vcf_path, force=True)
-        vcf.filter_vcf(vcfs_global, [gene_region], gpcrdb_entry.global_gene_vcf_path, force=True)
+        vcf.filter_vcf(vcfs_jpn, [gene_region], gpcrdb_entry.japan_gene_vcf_path)
+        vcf.filter_vcf(vcfs_global, [gene_region], gpcrdb_entry.global_gene_vcf_path)
         
-        vcf.filter_vcf(vcfs_jpn, ensembl_entry.ordered_coding_regions, gpcrdb_entry.japan_cds_vcf_path, force=True)
-        vcf.filter_vcf(vcfs_global, ensembl_entry.ordered_coding_regions, gpcrdb_entry.global_cds_vcf_path, force=True)
+        vcf.filter_vcf(vcfs_jpn, ensembl_entry.ordered_coding_regions, gpcrdb_entry.japan_cds_vcf_path)
+        vcf.filter_vcf(vcfs_global, ensembl_entry.ordered_coding_regions, gpcrdb_entry.global_cds_vcf_path)
 
         with open(gpcrdb_entry.japan_cds_csv_path, 'w') as f:
             f.write(ensembl.Annotation.header() + '\n')
