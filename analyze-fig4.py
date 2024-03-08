@@ -174,7 +174,7 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
     fig.savefig(filename_D)
     plt.close(fig)
 
-    # Fig. S4b
+    # Fig. S4c
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), dpi=300)
 
     ax.axhspan(AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC, color='lightgray')
@@ -182,12 +182,15 @@ def analyze_jpn_vs_global(filename_A, filename_B, filename_C, filename_D, filena
     xys = [(anno.snv.AF, anno.pathogenicity) for anno in jpn_vars.values()]
     ax.scatter(*np.array(xys).T, marker='.', color='tab:gray')
 
-    ax.text(1.02, AM_THRESHOLD_BENIGN / 2, "likely benign", va='center', ha='left', rotation=90, color='tab:gray', size=8)
-    ax.text(1.02, (AM_THRESHOLD_BENIGN + AM_THRESHOLD_PATHOGENIC) / 2, "ambigous", va='center', ha='left', rotation=90, color='tab:gray', size=8)
-    ax.text(1.02, (AM_THRESHOLD_PATHOGENIC + 1) / 2, "likely pathogenic", va='center', ha='left', rotation=90, color='tab:gray', size=8)
+    benign_text = "likely benign\n({:,})".format(len(likely_benign_keys))
+    ax.text(1.07, AM_THRESHOLD_BENIGN / 2, benign_text, va='center', ha='center', rotation=90, color='tab:gray', size=8)
+    ambigous_text = "ambigous\n({:,})".format(len(ambigous_keys))
+    ax.text(1.07, (AM_THRESHOLD_BENIGN + AM_THRESHOLD_PATHOGENIC) / 2, ambigous_text, va='center', ha='center', rotation=90, color='tab:gray', size=8)
+    pathogenic_text = "likely pathogenic\n({:,} vars.)".format(len(likely_pathogenic_keys))
+    ax.text(1.07, (AM_THRESHOLD_PATHOGENIC + 1) / 2, pathogenic_text, va='center', ha='center', rotation=90, color='tab:gray', size=8)
 
     ax.set_xlabel("Allel Freq. in 54KJPN")
-    ax.set_xlim(-0.02, 1.07)
+    ax.set_xlim(-0.02, 1.12)
     ax.set_ylabel("Pathogenicity")
     ax.set_ylim(-0.02, 1.02)
     ax.set_yticks([0, AM_THRESHOLD_BENIGN, AM_THRESHOLD_PATHOGENIC, 1])
