@@ -9,6 +9,46 @@ import ensembl
 from utils import VariationType, Segment, GproteinCoupling
 import json
 
+# See the following reference for detail
+# https://doi.org/10.1038/s41467-022-34055-5
+common_residues = {"3x50", "3x53", "3x54", "34x50", "34x51", "34x55", "5x65", "5x68", "6x32", "6x33", "6x36", "6x37", "7x56", "8x47"}
+gs_residues = common_residues | {"3x54", "3x55", "34x51", "34x54", "34x55", "5x64", "5x68", "5x69", "5x71", "5x72", "5x74", "5x75", "5x77", "8x48"}
+gi_residues = common_residues | {"12x49", "2x40", "3x50", "3x53", "34x52", "34x55", "5x71", "6x32", "7x56", "8x47", "8x49"}
+gq_residues = common_residues | {"2x37", "2x39", "2x40", "3x49", "34x51", "34x53", "34x55", "34x56", "34x57", "4x38", "4x39", "6x30", "6x33", "8x48", "8x49"}
+
+f = lambda gn: (Segment.generic_number_of(gn).index, int(gn.split('x')[-1]))
+
+roi = frozenset(gs_residues | gi_residues | gq_residues)
+gs_only = frozenset(gs_residues - gi_residues - gq_residues)
+print("Gs only", " ".join(sorted(list(gs_only), key=f)))
+gi_only = frozenset(gi_residues - gs_residues - gq_residues)
+print("Gi only", " ".join(sorted(list(gi_only), key=f)))
+gq_only = frozenset(gq_residues - gs_residues - gi_residues)
+print("Gq only", " ".join(sorted(list(gq_only), key=f)))
+gs_gi = frozenset(gs_residues & gi_residues - gq_residues)
+print("Gs^Gi", " ".join(sorted(list(gs_gi), key=f)))
+gi_gq = frozenset(gi_residues & gq_residues - gs_residues)
+print("Gi^Gq", " ".join(sorted(list(gi_gq), key=f)))
+gq_gs = frozenset(gq_residues & gs_residues - gi_residues)
+print("Gq^Gs", " ".join(sorted(list(gq_gs), key=f)))
+gs_gi_gq = frozenset(gs_residues & gi_residues & gq_residues)
+print("Gs^Gi^Gq", " ".join(sorted(list(gs_gi_gq), key=f)))
+
+# CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
+matplot_colormap = {
+    gs_gi_gq: "tab:gray",
+    gs_only: GproteinCoupling.Gs.color, gs_gi: "blue",
+    gi_only: GproteinCoupling.Gio.color, gi_gq: "red",
+    gq_only: GproteinCoupling.Gq11.color, gq_gs: "lime"
+}
+
+pymol_colormap = {
+    gs_gi_gq: "gray50",
+    gs_only: "cyan", gs_gi: "blue",
+    gi_only: "magenta", gi_gq: "red",
+    gq_only: "yellow", gq_gs: "green"
+}
+
 def analyze_positions(filename):
     assigned = {}
     found = {}
@@ -69,6 +109,11 @@ def analyze_positions(filename):
     ax.set_yticks([y for y, gn in enumerate(generic_numbers) if gn.endswith('x50')])
     ax.set_yticklabels([gn for gn in generic_numbers if gn.endswith('x50')])
     ax.set_ylabel("Structure-based generic number")
+
+    ax.set_yticks([y for y, gn in enumerate(generic_numbers) if gn in roi], minor=True)
+    ax.set_yticklabels([], minor=True)
+    ax.tick_params(axis='y', which='minor', color='tab:orange', width=1, length=3)
+
     num_receptors = max(assigned.values())
     ax.set_xlim(0, num_receptors)
     ax.set_xlabel("Number of family A GPCRs")
@@ -77,11 +122,9 @@ def analyze_positions(filename):
     fig.tight_layout()
     fig.savefig(filename)
 
-def analyze_arginine_3x50(filename):
-    roi = "3x50"
-
-    aa_stats = {}
-    codon_stats = {}
+def analyze_accumulative_positions(filename):
+    aa_stats_3x50, aa_stats_8x51 = {}, {}
+    arg_codon_stats_3x50, arg_codon_stats_8x51 = {}, {}
     for receptor in gpcrdb.get_filtered_receptor_list():
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue
@@ -95,22 +138,29 @@ def analyze_arginine_3x50(filename):
                 residue, generic_number = cols[0], cols[2]
                 structure_based_number = generic_number.split('.')[0] + 'x' + generic_number.split('x')[-1]
 
-                if structure_based_number == roi:
-                    aa = residue[0]
-                    aa_stats[aa] = aa_stats.get(aa, 0) + 1
-
-                    res_num = int(residue[1:])
+                aa = residue[0]
+                res_num = int(residue[1:])
+                if structure_based_number == "3x50":
+                    aa_stats_3x50[aa] = aa_stats_3x50.get(aa, 0) + 1
 
                     if aa == 'R':
                         with open(receptor.cds_path) as j:
                             codon = json.load(j)['canonical_cds'][res_num * 3 - 3: res_num * 3]
-                            codon_stats[codon] = codon_stats.get(codon, 0) + 1
-    
-    fig, ax = plt.subplots(1, 1, figsize=(8, 1.5), dpi=300)
+                            arg_codon_stats_3x50[codon] = arg_codon_stats_3x50.get(codon, 0) + 1
+                elif structure_based_number == "8x51":
+                    aa_stats_8x51[aa] = aa_stats_8x51.get(aa, 0) + 1
 
+                    if aa == 'R':
+                        with open(receptor.cds_path) as j:
+                            codon = json.load(j)['canonical_cds'][res_num * 3 - 3: res_num * 3]
+                            arg_codon_stats_8x51[codon] = arg_codon_stats_8x51.get(codon, 0) + 1
+    
+    fig, axes = plt.subplots(2, 1, figsize=(8, 2.5), sharex=True, dpi=300)
+
+    ax = axes[0]
     left = 0
-    for aa in sorted(aa_stats.keys(), key=lambda aa:aa_stats[aa], reverse=True):
-        delta = aa_stats[aa]
+    for aa in sorted(aa_stats_3x50.keys(), key=lambda aa:aa_stats_3x50[aa], reverse=True):
+        delta = aa_stats_3x50[aa]
         color = 'tab:orange' if aa == 'R' else 'lightgray'
         ax.barh(1, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
         if aa == 'R':
@@ -119,11 +169,38 @@ def analyze_arginine_3x50(filename):
     total_receptors = left
     
     left = 0
-    for codon in sorted(codon_stats.keys(), key=lambda codon: ('CG' not in codon, -codon_stats[codon])):
-        delta = codon_stats[codon]
+    for codon in sorted(arg_codon_stats_3x50.keys(), key=lambda codon: ('CG' not in codon, -arg_codon_stats_3x50[codon])):
+        delta = arg_codon_stats_3x50[codon]
         color = 'tab:orange' if 'CG' in codon else 'lightgray'
         ax.barh(0, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
         ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center', size=6)
+        left += delta
+
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(['Codon', 'AA'])
+    ax.set_ylabel("3x50")
+    ax.set_ylim([-0.5, 1.5])
+
+    ax = axes[1]
+    left = 0
+    for aa in sorted(aa_stats_8x51.keys(), key=lambda aa:aa_stats_8x51[aa], reverse=True):
+        delta = aa_stats_8x51[aa]
+        color = 'tab:orange' if aa == 'R' else 'lightgray'
+        ax.barh(1, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
+        if aa == 'R':
+            ax.text(left + delta / 2, 1, "Arg\n({})".format(delta), ha='center', va='center', size=6)
+        left += delta
+    total_receptors = left
+    
+    left = 0
+    for codon in sorted(arg_codon_stats_8x51.keys(), key=lambda codon: ('CG' not in codon, -arg_codon_stats_8x51[codon])):
+        delta = arg_codon_stats_8x51[codon]
+        color = 'tab:orange' if 'CG' in codon else 'lightgray'
+        ax.barh(0, delta, left=left, color=color, linewidth=0.5, edgecolor='k')
+        if codon == 'CGT':
+            ax.text(left + delta / 2, -0.45, "{} ({})".format(codon, delta), ha='center', va='top', size=6)
+        else:
+            ax.text(left + delta / 2, 0, "{}\n({})".format(codon, delta), ha='center', va='center', size=6)
         left += delta
 
     ax.set_xlim(0, total_receptors)
@@ -132,50 +209,14 @@ def analyze_arginine_3x50(filename):
     ax.set_xlabel("Number of Family A GPCRs")
 
     ax.set_yticks([0, 1])
-    ax.set_yticklabels(['3x50 Codon', '3x50 AA'])
+    ax.set_yticklabels(['Codon', 'AA'])
+    ax.set_ylabel("8x51")
+    ax.set_ylim([-0.7, 1.5])
     
     fig.tight_layout()
     fig.savefig(filename)
 
-def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
-    # See the following reference for detail
-    # https://doi.org/10.1038/s41467-022-34055-5
-    common_residues = {"3x50", "3x53", "3x54", "34x50", "34x51", "34x55", "5x65", "5x68", "6x32", "6x33", "6x36", "6x37", "7x56", "8x47"}
-    gs_residues = common_residues | {"3x54", "3x55", "34x51", "34x54", "34x55", "5x64", "5x68", "5x69", "5x71", "5x72", "5x74", "5x75", "5x77", "8x48"}
-    gi_residues = common_residues | {"12x49", "2x40", "3x50", "3x53", "34x52", "34x55", "5x71", "6x32", "7x56", "8x47", "8x49"}
-    gq_residues = common_residues | {"2x37", "2x39", "2x40", "3x49", "34x51", "34x53", "34x55", "34x56", "34x57", "4x38", "4x39", "6x30", "6x33", "8x48", "8x49"}
-
-    f = lambda gn: (Segment.generic_number_of(gn).index, int(gn.split('x')[-1]))
-
-    roi = frozenset(gs_residues | gi_residues | gq_residues)
-    gs_only = frozenset(gs_residues - gi_residues - gq_residues)
-    print("Gs only", " ".join(sorted(list(gs_only), key=f)))
-    gi_only = frozenset(gi_residues - gs_residues - gq_residues)
-    print("Gi only", " ".join(sorted(list(gi_only), key=f)))
-    gq_only = frozenset(gq_residues - gs_residues - gi_residues)
-    print("Gq only", " ".join(sorted(list(gq_only), key=f)))
-    gs_gi = frozenset(gs_residues & gi_residues - gq_residues)
-    print("Gs^Gi", " ".join(sorted(list(gs_gi), key=f)))
-    gi_gq = frozenset(gi_residues & gq_residues - gs_residues)
-    print("Gi^Gq", " ".join(sorted(list(gi_gq), key=f)))
-    gq_gs = frozenset(gq_residues & gs_residues - gi_residues)
-    print("Gq^Gs", " ".join(sorted(list(gq_gs), key=f)))
-    gs_gi_gq = frozenset(gs_residues & gi_residues & gq_residues)
-    print("Gs^Gi^Gq", " ".join(sorted(list(gs_gi_gq), key=f)))
-
-    # CMYK coloring (C = Gs, M = Gi, Y = Gq, K = common)
-    pymol_colormap = {gs_gi_gq: "gray50",
-        gs_only: "cyan", gs_gi: "blue",
-        gi_only: "magenta", gi_gq: "red",
-        gq_only: "yellow", gq_gs: "green"
-    }
-    matplot_colormap = {gs_gi_gq: "tab:gray",
-        gs_only: GproteinCoupling.Gs.color, gs_gi: "blue",
-        gi_only: GproteinCoupling.Gio.color, gi_gq: "red",
-        gq_only: GproteinCoupling.Gq11.color, gq_gs: "lime"
-    }
-
-    # Fig. 3b
+def visualize_G_protein_contact_positions(filename):
     # Look up these residues in ADRB2
     residues = []
     gen_nums = []
@@ -222,9 +263,10 @@ def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
    137.008300781,  176.940826416,  -20.000000000 )""")
     commands.append("scene cavity, store")
 
-    with open(filename_A, 'w') as f:
+    with open(filename, 'w') as f:
         f.write('\n'.join(commands))
 
+def analyze_G_protein_contact_positions(filename_A, filename_B):
     anno_by_coupling = {primary: {gn: [] for gn in roi} for primary in GproteinCoupling}
     number_of_receptors = {primary: 0 for primary in GproteinCoupling}
     for receptor in gpcrdb.get_filtered_receptor_list():
@@ -280,7 +322,7 @@ def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
     ax.legend(title="Primary coupling")
 
     fig.tight_layout()
-    fig.savefig(filename_B)
+    fig.savefig(filename_A)
     plt.close(fig)       
 
     # Fig. S3c
@@ -304,9 +346,10 @@ def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
     axes[-1].set_xlabel("Number of Variants")
 
     fig.tight_layout()
-    fig.savefig(filename_C)
+    fig.savefig(filename_B)
 
 if __name__ == '__main__':
-    # analyze_positions("./figures/3a_positions.pdf")
-    # analyze_arginine_3x50("./figures/S3a_arginine_3x50.pdf")
-    analyze_G_protein_contact_positions("./figures/3b_pymol_commands.pml", "./figures/3c_contacts.pdf", "./figures/S3c_contacts.pdf")
+    analyze_positions("./figures/3a_positions.pdf")
+    visualize_G_protein_contact_positions("./figures/3b_pymol_commands.pml")
+    analyze_accumulative_positions("./figures/S3a_accumulative_position_stats.pdf")
+    analyze_G_protein_contact_positions("./figures/3c_contacts.pdf", "./figures/S3c_contacts.pdf")
