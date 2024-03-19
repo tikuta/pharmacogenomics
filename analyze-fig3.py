@@ -271,7 +271,8 @@ def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
                 anno = d['annotation']
                 if anno.snv.AF > 0.2:
                     y = 0.975 if d['display_name'] == 'GPR148' else 0.225
-                    text = " {} {}{}$^{{{}}}${}".format(d['display_name'], anno.ref_aa, anno.residue_number, anno.generic_number, anno.alt_aa)
+                    superscript = r'$^{\mathrm{' + anno.generic_number + r'}}$'
+                    text = " {} {}{}{}{}".format(d['display_name'], anno.ref_aa, anno.residue_number, superscript, anno.alt_aa)
                     ax.text(1, y, text, ha='left', va='center')
     ax.set_xscale('log')
     ax.set_xlabel("Number of Variants")
@@ -306,6 +307,6 @@ def analyze_G_protein_contact_positions(filename_A, filename_B, filename_C):
     fig.savefig(filename_C)
 
 if __name__ == '__main__':
-    analyze_positions("./figures/3a_positions.pdf")
-    analyze_arginine_3x50("./figures/S3a_arginine_3x50.pdf")
+    # analyze_positions("./figures/3a_positions.pdf")
+    # analyze_arginine_3x50("./figures/S3a_arginine_3x50.pdf")
     analyze_G_protein_contact_positions("./figures/3b_pymol_commands.pml", "./figures/3c_contacts.pdf", "./figures/S3c_contacts.pdf")

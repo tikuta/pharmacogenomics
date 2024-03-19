@@ -217,7 +217,9 @@ def analyze_terminal_regions(filename):
     for glyco in n_glyco_gain + n_glyco_loss:
         anno = glyco['annotation']
         from_to_label = "({}$\\rightarrow${})".format(glyco['ref_motif'], glyco['alt_motif'])
-        label = "{} {}{}{} {}".format(glyco['display_name'], anno.ref_aa, anno.residue_number, anno.alt_aa, from_to_label)
+        superscript = anno.generic_number if anno.generic_number else anno.segment.value
+        superscript = r'$^{\mathrm{' + superscript + r'}}$'
+        label = "{} {}{}{}{} {}".format(glyco['display_name'], anno.ref_aa, anno.residue_number, superscript, anno.alt_aa, from_to_label)
         for r in range(50, 100, 5):
             bottom, top = r / 100, r / 100 + 0.05
             if bottom < anno.snv.AF <= top:
@@ -329,7 +331,7 @@ def visualize_ptgdr2_v204a(filename):
         f.write('\n'.join(commands))
 
 if __name__ == '__main__':
-    analyze_high_allele_freq_vars("./figures/2a_high_allele_freq_vars.pdf", "./figures/2b_high_allele_freq_vars.pdf")
+    # analyze_high_allele_freq_vars("./figures/2a_high_allele_freq_vars.pdf", "./figures/2b_high_allele_freq_vars.pdf")
     analyze_terminal_regions("./figures/2cde_ptm.pdf")
-    analyze_nonterminal_regions("./figures/2f_pymol_commands.pml")
-    visualize_ptgdr2_v204a("./figures/S2c_pymol_commands.pml")
+    # analyze_nonterminal_regions("./figures/2f_pymol_commands.pml")
+    # visualize_ptgdr2_v204a("./figures/S2c_pymol_commands.pml")
