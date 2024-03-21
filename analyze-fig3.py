@@ -52,6 +52,7 @@ pymol_colormap = {
 def analyze_positions(filename):
     assigned = {}
     found = {}
+    max_3x50_var_freq = 0
     for receptor in gpcrdb.get_filtered_receptor_list():
         if receptor.receptor_class != 'Class A (Rhodopsin)':
             continue
@@ -91,9 +92,15 @@ def analyze_positions(filename):
                     continue
                 structure_based_number = anno.generic_number.split('.')[0] + 'x' + latter
                 missense.add(structure_based_number)
+
+                if structure_based_number == '3x50':
+                    if anno.snv.AF > max_3x50_var_freq:
+                        max_3x50_var_freq = anno.snv.AF
         
         for gn in missense:
             found[gn] = found.get(gn, 0) + 1
+    
+    print(max_3x50_var_freq)
 
     generic_numbers = sorted(assigned.keys(), key=lambda gn:Segment.generic_number_of(gn).index)
 
