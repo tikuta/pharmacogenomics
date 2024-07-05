@@ -23,7 +23,7 @@ class EnsemblGeneEntry:
 
         self.ensembl_path = self.gpcrdb_entry.ensembl_path
         self.sequence_path = self.gpcrdb_entry.sequence_path
-        self.visualization_path = os.path.join(self.dirpath, "gene.png")
+        self.visualization_path = os.path.join(self.gpcrdb_entry.dirpath, "gene.png")
         self.cds_path = self.gpcrdb_entry.cds_path
         self.alignment_path = self.gpcrdb_entry.alignment_path
         self.alphamissense_path = os.path.join(self.gpcrdb_entry.dirpath, AM_FILENAME)
