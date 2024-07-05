@@ -337,5 +337,6 @@ def analyze_gene_stats(filename):
 if __name__ == '__main__':
     analyze_calls("./figures/1ab_variations.pdf")
     analyze_var_seg("./figures/1d_var_seg_percent.pdf")
-    analyze_gene_stats("./figures/S1a_stats.pdf")
-    analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")
+    analyze_calls("./figures/1ab_variations.pdf")
+    # analyze_gene_stats("./figures/S1a_stats.pdf")
+    # analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")

@@ -8,6 +8,7 @@ plt.rcParams['font.family'] = "Arial"
 import ensembl
 from utils import VariationType, Segment
 import json
+from scipy import stats
 
 def analyze_high_allele_freq_vars(filename_A, filename_B):
     high_frequent_vars = []
@@ -31,10 +32,19 @@ def analyze_high_allele_freq_vars(filename_A, filename_B):
                         raise NotImplementedError
 
                     if anno.var_type == VariationType.MISSENSE and anno.snv.AF > 0.5:
-                        d = {"display_name": display_name, "annotation": anno, "class A": receptor.receptor_class == 'Class A (Rhodopsin)'}
+                        ensembl_entry = ensembl.EnsemblGeneEntry(receptor)
+
+                        d = {
+                            "display_name": display_name, 
+                            "annotation": anno, 
+                            "class A": receptor.receptor_class == 'Class A (Rhodopsin)',
+                            "num_aa": len(ensembl_entry.protein_seq),
+                            "num_segs": {s: ensembl_entry.segments.count(s) for s in Segment},
+                        }
                         high_frequent_vars.append(d)
                 except ensembl.BlankLineError:
                     continue
+
     high_frequent_vars.sort(key=lambda d: (d['annotation'].snv.AF, -d['annotation'].segment.index, d['class A'], d['annotation'].residue_number))
 
     # Fig. 2a
@@ -42,10 +52,15 @@ def analyze_high_allele_freq_vars(filename_A, filename_B):
     ax.set_facecolor('whitesmoke')
 
     left = 0
+    obs_N, obs_non_N = 0, 0
     for seg in Segment:
         width = sum([1 if var['annotation'].segment == seg else 0 for var in high_frequent_vars])
         if width == 0:
             continue
+        if seg == Segment.Nterm:
+            obs_N = width
+        else:
+            obs_non_N += width
 
         ax.barh(0, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
         
@@ -59,6 +74,15 @@ def analyze_high_allele_freq_vars(filename_A, filename_B):
         text = str(width) if seg != Segment.Nterm else "{} variants".format(width)
         ax.text(x, -0.375, text, color='black', ha='center', va='top', size=8)
         left += width
+
+    len_N, len_non_N = 0, 0
+    for var in high_frequent_vars:
+        len_N += var['num_segs'][Segment.Nterm]
+        len_non_N += sum([var['num_segs'][s] for s in Segment if s != Segment.Nterm])
+    e_N, e_non_N = (obs_N + obs_non_N) * len_N / (len_N + len_non_N), (obs_N + obs_non_N) * len_non_N / (len_N + len_non_N)
+        
+    res = stats.chi2_contingency([[obs_N, obs_non_N], [e_N, e_non_N]], correction=False)
+    print("N-term p-value", res.pvalue)
 
     ax.set_xlim(0, left)
     ax.set_ylim(-0.5, 0.5)
