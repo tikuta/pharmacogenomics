@@ -79,10 +79,11 @@ def analyze_high_allele_freq_vars(filename_A, filename_B):
     for var in high_frequent_vars:
         len_N += var['num_segs'][Segment.Nterm]
         len_non_N += sum([var['num_segs'][s] for s in Segment if s != Segment.Nterm])
-    e_N, e_non_N = (obs_N + obs_non_N) * len_N / (len_N + len_non_N), (obs_N + obs_non_N) * len_non_N / (len_N + len_non_N)
-        
-    res = stats.chi2_contingency([[obs_N, obs_non_N], [e_N, e_non_N]], correction=False)
-    print("N-term p-value", res.pvalue)
+    p_hypergeom = stats.hypergeom.cdf(M=len_N + len_non_N, n=len_N, N=obs_N + obs_non_N, k=obs_N)
+    print("N-term hypergemometric test p-value:", p_hypergeom)
+
+    res = stats.chi2_contingency([[len_N, len_non_N], [obs_N, obs_non_N]], correction=False)
+    print("N-term chi-square test p-value:", res.pvalue)
 
     ax.set_xlim(0, left)
     ax.set_ylim(-0.5, 0.5)
@@ -356,6 +357,6 @@ def visualize_ptgdr2_v204a(filename):
 
 if __name__ == '__main__':
     analyze_high_allele_freq_vars("./figures/2a_high_allele_freq_vars.pdf", "./figures/2b_high_allele_freq_vars.pdf")
-    analyze_terminal_regions("./figures/2cde_ptm.pdf")
-    analyze_nonterminal_regions("./figures/2f_pymol_commands.pml")
-    visualize_ptgdr2_v204a("./figures/S2c_pymol_commands.pml")
+    # analyze_terminal_regions("./figures/2cde_ptm.pdf")
+    # analyze_nonterminal_regions("./figures/2f_pymol_commands.pml")
+    # visualize_ptgdr2_v204a("./figures/S2c_pymol_commands.pml")
