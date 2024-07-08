@@ -14,7 +14,7 @@ import json
 
 def analyze_calls(filename):
     num_cds, num_gene = 0, 0
-    num_missense, num_silent, num_nonsense = 0, 0, 0
+    seg_missense, seg_silent, seg_nonsense = {}, {}, {}
     for receptor in gpcrdb.get_filtered_receptor_list():
         calls_gene = set()
         with open(receptor.japan_gene_vcf_path) as f:
@@ -43,62 +43,6 @@ def analyze_calls(filename):
                 try:
                     anno = ensembl.Annotation.from_csv_line(l)
                     if anno.var_type == VariationType.MISSENSE:
-                        num_missense += 1
-                    elif anno.var_type == VariationType.SILENT:
-                        num_silent += 1
-                    elif anno.var_type == VariationType.NONSENSE:
-                        num_nonsense += 1
-                except ensembl.BlankLineError:
-                    continue
-
-    fig, axes = plt.subplots(1, 2, figsize=(8, 2), dpi=300, sharey=True)
-
-    ax = axes[0]
-    num_gene_only = num_gene - num_cds
-    ax.barh(0, num_gene_only, color='tab:gray', alpha=0.6)
-    non_coding_text = "Non-coding region\n{:,} calls ({:.1f}%)".format(num_gene_only, num_gene_only / num_gene * 100)
-    ax.text(num_gene_only / 2, 0, non_coding_text, ha='center', va='center')
-
-    ax.barh(0, num_cds, left=num_gene_only, color='tab:orange')
-    coding_text = "Coding region\n{:,} calls\n({:.1f}%)".format(num_cds, num_cds / num_gene * 100)
-    ax.text(num_gene + num_cds / 2, -0.45, coding_text, ha='center', va='top')
-
-    ax.set_xlim(0, num_gene)
-    ax.set_axis_off()
-
-    ax = axes[1]
-    total = num_missense + num_silent + num_nonsense
-
-    ax.barh(0, num_missense, color='tab:orange')
-    missense_text = "Missense\n{:,} SNVs\n({:.1f}%)".format(num_missense, num_missense / total * 100)
-    ax.text(num_missense / 2, 0, missense_text, ha='center', va='center')
-
-    ax.barh(0, num_silent, left=num_missense, color='tab:gray', alpha=0.6)
-    silent_text = "Silent\n{:,} SNVs\n({:.1f}%)".format(num_silent, num_silent / total * 100)
-    ax.text(num_missense + num_silent / 2, 0, silent_text, ha='center', va='center')
-
-    ax.barh(0, num_nonsense, left=num_missense + num_silent, color='tab:gray')
-    nonsense_text = "Nonsense\n{:,} SNVs\n({:.1f}%)".format(num_nonsense, num_nonsense / total * 100)
-    ax.text(num_missense + num_silent + num_nonsense / 2, -0.45, nonsense_text, ha='center', va='top')
-
-    ax.set_xlim(0, total)
-    ax.set_axis_off()
-
-    fig.tight_layout()
-    fig.savefig(filename)
-
-def analyze_var_seg(filename):
-    seg_missense, seg_silent, seg_nonsense = {}, {}, {}
-    for receptor in gpcrdb.get_filtered_receptor_list():
-        with open(receptor.japan_cds_csv_path) as f:
-            for l in f.readlines():
-                try:
-                    anno = ensembl.Annotation.from_csv_line(l)
-                    if anno.segment == None:
-                        print(receptor.entry_name, anno.snv)
-                        continue
-
-                    if anno.var_type == VariationType.MISSENSE:
                         seg_missense[anno.segment.value] = seg_missense.get(anno.segment.value, 0) + 1
                     elif anno.var_type == VariationType.SILENT:
                         seg_silent[anno.segment.value] = seg_silent.get(anno.segment.value, 0) + 1
@@ -107,42 +51,63 @@ def analyze_var_seg(filename):
                 except ensembl.BlankLineError:
                     continue
 
-    total_missense = sum([v for v in seg_missense.values()])
-    total_silent = sum([v for v in seg_silent.values()])
-    total_nonsense = sum([v for v in seg_nonsense.values()])
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 6), dpi=300, height_ratios=[1, 5], sharex=True)
 
-    fig, ax = plt.subplots(1, 1, figsize=(4, 2), dpi=300)
+    num_gene_only = num_gene - num_cds
+    x = num_gene_only / num_gene * 100
+    ax1.barh(0, x, color='tab:gray', height=0.25, edgecolor='k', lw=0.2, alpha=0.6)
+    non_coding_text = "Non-coding region\n{:,} calls ({:.1f}%)".format(num_gene_only, x)
+    ax1.text(x / 2, 0, non_coding_text, ha='center', va='center')
 
-    left = 0
-    for seg in Segment:
-        width = seg_missense.get(seg.value, 0) / total_missense * 100
-        ax.barh(2, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
-        
-        label = seg.value
-        if label.startswith('TM') or label.endswith('-term'):
-            ax.text(left + width / 2, 2.4, label, ha='center', va='bottom', size=6)
-        left += width
+    ax1.barh(0, num_cds / num_gene * 100, left=x, height=0.25, edgecolor='k', lw=0.2, color='tab:orange')
+    coding_text = "Coding region\n{:,} calls\n({:.1f}%)".format(num_cds, num_cds / num_gene * 100)
+    ax1.text(x + num_cds / num_gene * 100, 0.15, coding_text, ha='center', va='bottom')
+    ax1.set_axis_off()
 
-    left = 0
-    for seg in Segment:
-        width = seg_silent.get(seg.value, 0) / total_silent * 100
-        ax.barh(1, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
-        left += width
+    num_missense = sum(seg_missense.values())
+    num_silent = sum(seg_silent.values())
+    num_nonsense = sum(seg_nonsense.values())
+    nums = sum([num_missense, num_silent, num_nonsense])
 
-    left = 0
-    for seg in Segment:
-        width = seg_nonsense.get(seg.value, 0) / total_nonsense * 100
-        ax.barh(0, width, height=0.7, left=left, color=seg.color, edgecolor='k', lw=0.2)
-        left += width
-    num_loss_of_function = sum([seg_nonsense.get(seg.value, 0) for seg in Segment if seg not in (Segment.H8, Segment.Cterm)])
-    ratio_loss_of_function = num_loss_of_function / total_nonsense * 100
-    ax.plot([0, ratio_loss_of_function], [-0.45, -0.45], lw=1, color='tab:gray')
-    ax.text(ratio_loss_of_function / 2, -0.5, "{:.1f}%".format(ratio_loss_of_function), ha='center', va='top', size=6, color='tab:gray')
+    bottom = -1
+    heights_and_segs = {
+        "Missense": (num_missense / nums, seg_missense),
+        "Silent": (num_silent / nums, seg_silent),
+        "Nonsense": (num_nonsense / nums, seg_nonsense)
+    }
+    for i, t in enumerate(heights_and_segs.keys()):
+        h = heights_and_segs[t][0]
+        s = heights_and_segs[t][1]
+        left = 0
+        bottom = -1 if i == 0 else bottom - h - 0.1
+        total = sum(s.values())
+        non_h8_or_cter = 0
+        for seg in Segment:
+            width = s.get(seg.value, 0) / total * 100
+            ax2.barh(bottom, width, height=h, left=left, color=seg.color, edgecolor='k', lw=0.2, align='edge')
+            
+            label = seg.value
+            if i == 0 and (label.startswith('TM') or label.endswith('-term')):
+                ax2.text(left + width / 2, bottom + h, label, ha='center', va='bottom', size=7)
+            left += width
 
-    ax.set_ylim(-0.75, 2.7)
-    ax.set_yticks(range(3))
-    ax.set_yticklabels(["Nonsense", "Silent", "Missense"])
-    ax.set_xlabel("SNVs [%]")
+            if seg not in (Segment.H8, Segment.Cterm):
+                non_h8_or_cter += width
+
+        text = f"{t}\n{total:,} SNVs\n({h / 2 * 100:.1f}%)"
+        ax2.text(110, bottom + h / 2, text, ha='center', va='center', multialignment='center')
+
+        if i == 2:
+            ax2.plot([0, non_h8_or_cter], [bottom - 0.03] * 2, lw=1, color='tab:gray')
+            ax2.text(non_h8_or_cter / 2, bottom - 0.04, f"{non_h8_or_cter:.1f}%", ha='center', va='top', size=8, color='tab:gray')
+
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['left'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.set_yticks([])
+    ax2.set_xlim(0, 100)
+    ax2.set_xlabel("Calls / SNVs [%]")
+
     fig.tight_layout()
     fig.savefig(filename)
 
@@ -335,8 +300,6 @@ def analyze_gene_stats(filename):
     fig.savefig(filename)
 
 if __name__ == '__main__':
-    analyze_calls("./figures/1ab_variations.pdf")
-    analyze_var_seg("./figures/1d_var_seg_percent.pdf")
-    analyze_calls("./figures/1ab_variations.pdf")
-    # analyze_gene_stats("./figures/S1a_stats.pdf")
-    # analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")
+    analyze_calls("./figures/1ac_variations.pdf")
+    analyze_gene_stats("./figures/S1a_stats.pdf")
+    analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")
