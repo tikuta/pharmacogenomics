@@ -11,10 +11,12 @@ import numpy as np
 from utils import VariationType, Segment
 import ensembl
 import json
+from scipy import stats
 
 def analyze_calls(filename):
     num_cds, num_gene = 0, 0
     seg_missense, seg_silent, seg_nonsense = {}, {}, {}
+    len_H8_C, len_non_H8_C = 0, 0
     for receptor in gpcrdb.get_filtered_receptor_list():
         calls_gene = set()
         with open(receptor.japan_gene_vcf_path) as f:
@@ -48,8 +50,21 @@ def analyze_calls(filename):
                         seg_silent[anno.segment.value] = seg_silent.get(anno.segment.value, 0) + 1
                     elif anno.var_type == VariationType.NONSENSE:
                         seg_nonsense[anno.segment.value] = seg_nonsense.get(anno.segment.value, 0) + 1
+
+                        ensembl_entry = ensembl.EnsemblGeneEntry(receptor)
+                        l_tail = ensembl_entry.segments.count(Segment.H8) + ensembl_entry.segments.count(Segment.Cterm)
+                        len_H8_C += l_tail
+                        len_non_H8_C += len(ensembl_entry.segments) - l_tail
+
                 except ensembl.BlankLineError:
                     continue
+    
+    obs_H8_C = seg_nonsense.get(Segment.H8.value, 0) + seg_nonsense.get(Segment.Cterm.value, 0)
+    obs_non_H8_C = sum(seg_nonsense.values()) - obs_H8_C
+
+    print(len_H8_C, len_non_H8_C, obs_H8_C, obs_non_H8_C)
+    p_hypergeom = stats.hypergeom.sf(M=len_H8_C + len_non_H8_C, n=len_H8_C, N=obs_H8_C + obs_non_H8_C, k=obs_H8_C - 1)
+    print("C-term hypergemometric test p-value:", p_hypergeom)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 6), dpi=300, height_ratios=[1, 5], sharex=True)
 
@@ -79,7 +94,7 @@ def analyze_calls(filename):
         h = heights_and_segs[t][0]
         s = heights_and_segs[t][1]
         left = 0
-        bottom = -1 if i == 0 else bottom - h - 0.1
+        bottom = -1 if i == 0 else bottom - h - 0.05
         total = sum(s.values())
         non_h8_or_cter = 0
         for seg in Segment:
@@ -301,5 +316,5 @@ def analyze_gene_stats(filename):
 
 if __name__ == '__main__':
     analyze_calls("./figures/1ac_variations.pdf")
-    analyze_gene_stats("./figures/S1a_stats.pdf")
-    analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")
+    # analyze_gene_stats("./figures/S1a_stats.pdf")
+    # analyze_segment_ratio("./figures/S1b_segment_ratio.pdf", "./figures/S1c_residue_count.pdf")

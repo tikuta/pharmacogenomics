@@ -64,7 +64,7 @@ class EnsemblGeneEntry:
             self.protein_seq = j['translated']
             self.stranded_coding_sequence = j['canonical_cds']
 
-        self._assign_generic_number(force=True)
+        self._assign_generic_number(force=force)
         self.generic_numbers = []
         self.segments = []
         with open(self.alignment_path) as f:
@@ -322,9 +322,6 @@ class EnsemblGeneEntry:
         return residues
 
     def _assign_generic_number(self, force=False):
-        if self.gpcrdb_entry.entry_name in ["ccr2_human", "gp142_human", "agrd2_human", "agrf3_human", "agrg6_human", "agrl2_human", "agrl3_human", "celr1_human"]:
-            force = True
-
         if os.path.exists(self.alignment_path) and force is False:
             return
         

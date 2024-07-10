@@ -9,6 +9,7 @@ import ensembl
 from utils import VariationType, Segment
 import json
 from scipy import stats
+import pprint
 
 def analyze_high_allele_freq_vars(filename_A, filename_B):
     high_frequent_vars = []
@@ -79,11 +80,11 @@ def analyze_high_allele_freq_vars(filename_A, filename_B):
     for var in high_frequent_vars:
         len_N += var['num_segs'][Segment.Nterm]
         len_non_N += sum([var['num_segs'][s] for s in Segment if s != Segment.Nterm])
+    pprint.pprint([["", "observed", "not observed", "total"], 
+                   ["Nter", obs_N, len_N - obs_N, len_N], 
+                   ["non-Nter", obs_non_N, len_non_N - obs_non_N, len_non_N]])
     p_hypergeom = stats.hypergeom.cdf(M=len_N + len_non_N, n=len_N, N=obs_N + obs_non_N, k=obs_N)
     print("N-term hypergemometric test p-value:", p_hypergeom)
-
-    res = stats.chi2_contingency([[len_N, len_non_N], [obs_N, obs_non_N]], correction=False)
-    print("N-term chi-square test p-value:", res.pvalue)
 
     ax.set_xlim(0, left)
     ax.set_ylim(-0.5, 0.5)
