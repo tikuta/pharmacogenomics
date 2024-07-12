@@ -76,6 +76,10 @@ class Segment(enum.Enum):
         return [cls.TM1, cls.TM2, cls.TM3, cls.TM4, cls.TM5, cls.TM6, cls.TM7]
     
     @classmethod
+    def helices(cls):
+        return cls.TMs() + [cls.H8]
+
+    @classmethod
     def ICLs(cls):
         return [cls.ICL1, cls.ICL2, cls.ICL3, cls.ICL4]
     
