@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-
-import os
 import gpcrdb
 import ensembl
 import vcf
@@ -47,7 +45,7 @@ def main():
         print(gpcrdb_entry)
 
         ensembl_entry = ensembl.EnsemblGeneEntry(gpcrdb_entry)
-        ensembl_entry.visualize()
+        #ensembl_entry.visualize()
 
         gene_region = Region(ensembl_entry.region.chromosome, ensembl_entry.region.start, ensembl_entry.region.end)
         vcf.filter_vcf(vcfs_jpn, [gene_region], gpcrdb_entry.japan_gene_vcf_path)

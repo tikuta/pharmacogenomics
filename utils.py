@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import enum
 from config import STANDARD_CODES
 import requests
+import json
 import time
 
 class GproteinCoupling(enum.Enum):
@@ -190,13 +191,26 @@ def translate(seq: str, **unusual_codons) -> str:
         ret += CODES[triplet]
     return ret
 
-def GET_json_with_retries(uri, retry_waits = [10, 30, 60, 120, 300]):
+def GET_json_with_retries(uri, retry_waits=[10, 30, 60, 120, 300]):
     for count, wait in enumerate(retry_waits):
         if count > 0:
-            print(f"Request to EnsEMBL lookup API failed (try = {count})."
+            print(f"Request to EnsEMBL lookup API ({uri}) failed (try = {count})."
                   f"Waiting for {wait} seconds...")
             time.sleep(wait)
         r = requests.get(uri, headers={"Content-Type": "application/json"})
 
         if r.ok:
             return r.json()
+    r.raise_for_status()
+        
+def POST_with_data_to_get_json_with_retries(uri, data, retry_waits=[10, 30, 60, 120, 300]):
+    for count, wait in enumerate(retry_waits):
+        if count > 0:
+            print(f"Request to EnsEMBL lookup API ({uri}) failed (try = {count})."
+                  f"Waiting for {wait} seconds...")
+            time.sleep(wait)
+        r = requests.post(uri, headers={"Content-Type": "application/json"}, data=json.dumps(data))
+
+        if r.ok:
+            return r.json()
+    r.raise_for_status()

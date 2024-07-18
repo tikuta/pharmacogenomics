@@ -86,23 +86,7 @@ class EnsemblGeneEntry:
         to_dump = None
         for gene_id in self.gpcrdb_entry.ensembl_id_candidates:
             uri = "https://rest.ensembl.org/lookup/id/{}?expand=1".format(gene_id)
-
-            r = requests.get(uri, headers={"Content-Type": "application/json"})
-
-            if not r.ok:
-                try_count = 1
-                retry_waits = [None, 10, 30, 60, 120, 300]
-                while try_count <= max_try:
-                    print("Request to EnsEMBL lookup API failed (try = {}). Waiting for {} seconds...".format(try_count, retry_waits[try_count]))
-                    time.sleep(retry_waits[try_count])
-                    r = requests.get(uri, headers={"Content-Type": "application/json"})
-                    if r.ok:
-                        break
-                    try_count += 1
-                else:
-                    raise Exception
-            
-            j = r.json()
+            j = GET_json_with_retries(uri)
 
             # Check chromosome name to determine which entry to use
             try:
@@ -127,13 +111,8 @@ class EnsemblGeneEntry:
             "coord_system_version": "GRCh38",
             "regions": ["{}:{}..{}:{}".format(self.region.chromosome, self.region.start, self.region.end, self.strand)]
         }
-        r = requests.post(uri, headers={"Content-Type": "application/json"}, data=json.dumps(data))
 
-        if not r.ok:
-            r.raise_for_status()
-            raise Exception
-        
-        j = r.json()
+        j = POST_with_data_to_get_json_with_retries(uri, data)
 
         with open(self.sequence_path, 'w') as f:
             json.dump(j, f, indent=2)
