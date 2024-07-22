@@ -17,6 +17,7 @@ You may install via APT system in Ubuntu.
     - 54KJPN: https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-54kjpn-20230626-af_snvindelall
     - 1KGP: https://www.ebi.ac.uk/eva/?eva-study=PRJEB30460
     - AlphaMissense: https://doi.org/10.5281/zenodo.8208688
+    - Great Ape Genome Project: https://eichlerlab.gs.washington.edu/greatape/data.html
 2. Execute `preprare.py`. The script depends on the following sites:
     - GPCRdb
     - UniProt

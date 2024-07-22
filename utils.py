@@ -138,7 +138,7 @@ class VariationType(enum.Enum):
 
 class Region:
     def __init__(self, chromosome: str, start: int, end: int) -> None:
-        self.chromosome = normalized_chromosome(chromosome)
+        self.chromosome = chromosome
         assert(start <= end)
         self.start = start
         self.end = end
@@ -164,7 +164,7 @@ class Region:
     def __len__(self) -> int:
         return self.end - self.start + 1
 
-def normalized_chromosome(c) -> str:
+def normalized_human_chromosome(c) -> str:
     if isinstance(c, int):
         return str(c)
     
@@ -174,7 +174,19 @@ def normalized_chromosome(c) -> str:
     if c in [str(v) for v in range(1, 23)] + ['X', 'Y']:
         return c
 
-    raise Exception("Unknown Chromosome `{}`.".format(c))
+    raise Exception(f"Unknown human chromosome: `{c}`.")
+
+def normalized_chimpanzee_chromosome(c) -> str:
+    if isinstance(c, int):
+        return str(c)
+    
+    if isinstance(c, str) and c.startswith('chr'):
+        return c[3:]
+    
+    if [str(v) for v in range(1, 23)] + ['2A', '2B', 'X', 'Y']:
+        return c
+
+    raise Exception(f"Unknown chimpanzee chromosome: `{c}`.")
 
 def complementary_sequence(seq: str) -> str:
     pairs = {"A": "T", "C": "G", "G": "C", "T": "A"}
@@ -190,6 +202,64 @@ def translate(seq: str, **unusual_codons) -> str:
         triplet = seq[i: i + 3]
         ret += CODES[triplet]
     return ret
+
+def calc_coding_regions(gene_region: Region, strand: int, transcript: dict):
+    """
+    We only have positions where coding regions start and end
+                       and where exons          start and end.
+    So we must assembly exact coding regions (indicated as '*' in the following examples).
+    Note that start (s) is always smaller than end (e), reagrdless of strand (plus or minus).
+    
+                        cds_s                                cds_e
+                        |                                    |
+    NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
+                        *****       *********       **********
+     |---|     |------------|       |-------|       |--------------|        |---| 
+     exon1   exon2_s      exon2_e exon3_s exon3_e exon4_s        exon4_e    exon5
+    
+    Or,
+                        cds_s                                 cds_e
+                        |                                     |
+    NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
+                        ***************************************
+                |------------------------------------------------------------|
+                exon6_s                                                      exon6_e
+    """
+
+    cds_s = transcript['Translation']['start']
+    cds_e = transcript['Translation']['end']
+    assert(cds_s <= cds_e)
+
+    coding_regions = []
+    for exon in transcript['Exon']:
+        exon_s = int(exon['start'])
+        exon_e = int(exon['end'])
+        assert(exon_s <= exon_e)
+        
+        if exon_s <= cds_s <= exon_e <= cds_e:   # Exon 2 in the above example
+            coding_regions.append(Region(gene_region.chromosome, cds_s, exon_e))
+        elif cds_s <= exon_s <= exon_e <= cds_e: # Exon 3
+            coding_regions.append(Region(gene_region.chromosome, exon_s, exon_e))
+        elif cds_s <= exon_s <= cds_e <= exon_e: # Exon 4
+            coding_regions.append(Region(gene_region.chromosome, exon_s, cds_e))
+        elif exon_s <= cds_s <= cds_e <= exon_e: # Exon 6
+            coding_regions.append(Region(gene_region.chromosome, cds_s, cds_e))
+        else:                                    # Exons 1 and 5 contain no coding region
+            continue
+
+    coding_regions.sort(key=lambda r: r.start)
+
+    # Remove stop codon from coding regions
+    if strand == 1:
+        assert(len(coding_regions[-1]) > 3)
+        last_region = coding_regions.pop(-1)
+        coding_regions.append(Region(gene_region.chromosome, last_region.start, last_region.end - 3))
+    else:
+        assert(len(coding_regions[0]) > 3)
+        last_region = coding_regions.pop(0)
+        coding_regions.insert(0, Region(gene_region.chromosome, last_region.start + 3, last_region.end))
+
+    return coding_regions
 
 def GET_json_with_retries(uri, retry_waits=[10, 30, 60, 120, 300]):
     for count, wait in enumerate(retry_waits):

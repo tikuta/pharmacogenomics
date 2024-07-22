@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import requests
 import json
 import os
 from typing import Dict, List
@@ -9,7 +8,6 @@ from matplotlib import pyplot as plt
 from utils import *
 import gpcrdb
 from Bio.Align import PairwiseAligner
-import time
 from vcf import SNV
 from config import AM_FILENAME, ALIGNMENT_CANDIDATES_FILENAME
 import alphamissense
@@ -44,7 +42,7 @@ class EnsemblGeneEntry:
                 if t['is_canonical'] == 1:
                     self.canonical_transcript_id = t['id']
                     self.canonical_translation_id = t['Translation']['id']
-                    self.ordered_coding_regions = self._calc_coding_regions(t)
+                    self.ordered_coding_regions = calc_coding_regions(self.region, self.strand, t)
                     break
             if self.canonical_transcript_id is None:
                 raise Exception("No canonical transcipt found.")
@@ -116,64 +114,6 @@ class EnsemblGeneEntry:
 
         with open(self.sequence_path, 'w') as f:
             json.dump(j, f, indent=2)
-
-    def _calc_coding_regions(self, transcript: Dict) -> List[Region]:
-        """
-        We only have positions where coding regions start and end
-                           and where exons          start and end.
-        So we must assembly exact coding regions (indicated as '*' in the following examples).
-        Note that start (s) is smaller than end (e), reagrdless of strand (plus or minus).
-        
-                          cds_s                                cds_e
-                            |                                    |
-        ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT
-                            *****       *********       **********
-         |---|     |------------|       |-------|       |--------------|        |---| 
-         exon1   exon2_s      exon2_e exon3_s exon3_e exon4_s        exon4_e    exon5
-        
-        Or,
-                          cds_s                                 cds_e
-                            |                                     |
-        ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT
-                            ***************************************
-                    |------------------------------------------------------------|
-                  exon6_s                                                      exon6_e
-        """
-
-        cds_s = transcript['Translation']['start']
-        cds_e = transcript['Translation']['end']
-        assert(cds_s < cds_e)
-
-        coding_regions = []
-        for exon in transcript['Exon']:
-            exon_s = int(exon['start'])
-            exon_e = int(exon['end'])
-            assert(exon_s < exon_e)
-            
-            if exon_s <= cds_s <= exon_e <= cds_e:   # Exon 2 in the above example
-                coding_regions.append(Region(self.region.chromosome, cds_s, exon_e))
-            elif cds_s <= exon_s <= exon_e <= cds_e: # Exon 3
-                coding_regions.append(Region(self.region.chromosome, exon_s, exon_e))
-            elif cds_s <= exon_s <= cds_e <= exon_e: # Exon 4
-                coding_regions.append(Region(self.region.chromosome, exon_s, cds_e))
-            elif exon_s <= cds_s <= cds_e <= exon_e: # Exon 6
-                coding_regions.append(Region(self.region.chromosome, cds_s, cds_e))
-            else:                                    # Exons 1 and 5 contain no coding region
-                continue
-
-        coding_regions.sort(key=lambda r: r.start)
-
-        # Remove stop codon from coding regions
-        if self.strand == 1:
-            assert(len(coding_regions[-1]) > 3)
-            last_region = coding_regions.pop(-1)
-            coding_regions.append(Region(self.region.chromosome, last_region.start, last_region.end - 3))
-        else:
-            assert(len(coding_regions[0]) > 3)
-            last_region = coding_regions.pop(0)
-            coding_regions.insert(0, Region(self.region.chromosome, last_region.start + 3, last_region.end))
-
-        return coding_regions
     
     def _save_cds(self, force=False):
         if os.path.exists(self.cds_path) and force is False:

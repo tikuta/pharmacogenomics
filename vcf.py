@@ -4,7 +4,7 @@ import subprocess
 import os
 from utils import Region
 from typing import List, Iterator
-from utils import normalized_chromosome
+from utils import *
 
 class NotPassedError(Exception):
     pass
