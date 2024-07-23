@@ -11,7 +11,7 @@ def main():
         for gene_id in homology.gene_ids[GreatApe.chimpanzee]:
             ensembl_entry = EnsemblChimpanzeeGene(gene_id)
 
-            gagp = os.path.join("data", "GAGP", "crossmap.vcf.gz")
+            gagp = os.path.join("data", "GAGP", "crossmap_sorted.vcf.gz")
             cds_vcf = os.path.join(ensembl_entry.dirpath, f"{gene_id}_CDS.vcf")
             vcf.filter_vcf([gagp], ensembl_entry.ordered_coding_regions, cds_vcf)
 

@@ -7,9 +7,9 @@ import gpcrdb
 class GreatApe(enum.Enum):
     # human = "homo_sapiens"
     chimpanzee = "pan_troglodytes"
-    bonobo = "pan_paniscus"
-    gorilla = "gorilla_gorilla"
-    sumatran_orangutan = "pongo_abelii"
+    # bonobo = "pan_paniscus"
+    # gorilla = "gorilla_gorilla"
+    # sumatran_orangutan = "pongo_abelii"
     # bornean_orangutan = "pongo_pygmaeus" # No entries in EnsEMBL database
 
 
@@ -28,6 +28,9 @@ class EnsemblHomology:
                 p = os.path.join(self.dirnames[ape], f"{gene_id}.json")
                 with open(p) as f:
                     j = json.load(f)
+                    
+                    if len(j['data']) == 0:
+                        continue
 
                     assert(len(j['data']) == 1)
 
