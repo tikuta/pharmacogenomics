@@ -114,3 +114,6 @@ class EnsemblChimpanzeeGene:
 
         with open(self.ensembl_path, 'w') as f:
             json.dump(j, f, indent=2)
+
+    def _assign_generic_number(self, force=False):
+        pass

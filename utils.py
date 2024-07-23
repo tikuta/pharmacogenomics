@@ -164,6 +164,13 @@ class Region:
     def __len__(self) -> int:
         return self.end - self.start + 1
 
+def normalized_chromosome(c, species="human"):
+    if species == "human":
+        return normalized_human_chromosome(c)
+    elif species == "chimpanzee":
+        return normalized_chimpanzee_chromosome(c)
+    raise Exception(f"Unknown species: `{c}`.")
+
 def normalized_human_chromosome(c) -> str:
     if isinstance(c, int):
         return str(c)
