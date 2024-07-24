@@ -159,9 +159,9 @@ def _get_primary_coupling(force=False):
     df_A = df[df['Cl'] == 'A']
 
     primary_coupling = {}
-    primary_coupling.update({name: GproteinCoupling.Gs for name in set(df_A['Uniprot'][df_A['Primaryfamily'] == "Gs"])})
-    primary_coupling.update({name: GproteinCoupling.Gio for name in set(df_A['Uniprot'][df_A['Primaryfamily'] == "Gi/o"])})
-    primary_coupling.update({name: GproteinCoupling.Gq11 for name in set(df_A['Uniprot'][df_A['Primaryfamily'] == "Gq/11"])})
-    primary_coupling.update({name: GproteinCoupling.G1213 for name in set(df_A['Uniprot'][df_A['Primaryfamily'] == "G12/13"])})
+    primary_coupling.update({name: GproteinCoupling.Gs for name in set(df_A['Uniprot'][df_A['Primary family'] == "Gs"])})
+    primary_coupling.update({name: GproteinCoupling.Gio for name in set(df_A['Uniprot'][df_A['Primary family'] == "Gi/o"])})
+    primary_coupling.update({name: GproteinCoupling.Gq11 for name in set(df_A['Uniprot'][df_A['Primary family'] == "Gq/11"])})
+    primary_coupling.update({name: GproteinCoupling.G1213 for name in set(df_A['Uniprot'][df_A['Primary family'] == "G12/13"])})
 
     return primary_coupling

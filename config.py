@@ -12,6 +12,8 @@ AM_THRESHOLD_PATHOGENIC = 0.564
 AM_THRESHOLD_BENIGN = 0.34
 AM_FILENAME = "alpha_missense.tsv"
 
+REFERENCE_CHIMPANZEE_GENOME = "Pan_tro_3.0"
+
 BLOCKLIST = (
     # pseudogenes
     'npy6r_human', # https://www.uniprot.org/uniprotkb/Q99463/entry
