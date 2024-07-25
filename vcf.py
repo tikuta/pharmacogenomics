@@ -2,7 +2,6 @@
 
 import subprocess
 import os
-from utils import Region
 from typing import List, Iterator
 from utils import *
 
@@ -24,36 +23,7 @@ class VariationEntry:
         self.AFs = AFs
     
     @classmethod
-    def load_from_54KJPN(cls, line: str):
-        l = line.strip()
-        if len(l) == 0:
-            raise BlankLineError
-        cols = l.split('\t')
-
-        passed = True if cols[6] == 'PASS' else False
-        if not passed:
-            raise NotPassedError(cols[6])
-
-        chromosome = cols[0]
-        position = int(cols[1])
-        rsid = cols[2]
-        ref = cols[3]
-        assert(',' not in ref)
-        alts = cols[4].split(',')
-        
-        # Some keys may not have values (e.g., TOMMO_POSSIBLE_PLATFORM_BIAS_SITE)
-        keyvals = {keyval.split('=')[0]: keyval.split('=')[-1] for keyval in cols[7].split(';')}
-
-        ACs = [int(v) for v in keyvals['AC'].split(',')]
-        AN = int(keyvals['AN'])
-        AFs = [float(v) for v in keyvals['AF'].split(',')]
-
-        assert(len(alts) == len(ACs) == len(AFs))
-
-        return cls(chromosome, position, rsid, ref, alts, ACs, AN, AFs)
-    
-    @classmethod
-    def load_from_1KGP(cls, line: str):
+    def load(cls, line: str):
         l = line.strip()
         if len(l) == 0:
             raise BlankLineError
@@ -65,11 +35,12 @@ class VariationEntry:
 
         chromosome = cols[0]
         position = int(cols[1])
-        rsid = None
+        rsid = None if cols[2] == '.' else cols[2]
         ref = cols[3]
         assert(',' not in ref)
         alts = cols[4].split(',')
         
+        # Some keys may not have values (e.g., TOMMO_POSSIBLE_PLATFORM_BIAS_SITE in 54KJPN)
         keyvals = {keyval.split('=')[0]: keyval.split('=')[-1] for keyval in cols[7].split(';')}
 
         ACs = [int(v) for v in keyvals['AC'].split(',')]
@@ -86,8 +57,9 @@ class VariationEntry:
             if len(self.ref) == 1:
                 assert(self.ref in 'ACGT')
                 if len(alt) == 1: # 1:1 SNV
-                    assert(alt in 'ACGT') # Illegal VCF can contain '-' to indicate deletions
-                    yield SNV.load(self, i)
+                    if alt in 'ACGT':
+                        # We found that alt can be '.' in GAGP VCF liftover to panTro5.
+                        yield SNV.load(self, i)
                 else: # 1:N insertion
                     pass
             else:
@@ -148,16 +120,11 @@ def filter_vcf(vcfs, regions: List[Region], fpath, force=False):
             if cp.stdout:
                 f.write(cp.stdout)
 
-def iterate_vcf(vcf, mode: str) -> Iterator[SNV]:
-    assert(mode in ('1KGP', '54KJPN'))
-
+def iterate_vcf(vcf) -> Iterator[SNV]:
     with open(vcf) as f:
         for l in f:
             try:
-                if mode == '1KGP':
-                    entry = VariationEntry.load_from_1KGP(l)
-                elif mode == '54KJPN':
-                    entry = VariationEntry.load_from_54KJPN(l)
+                entry = VariationEntry.load(l)
                 for snv in entry.snvs:
                     yield snv
             except (NotPassedError, BlankLineError):

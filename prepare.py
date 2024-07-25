@@ -57,14 +57,14 @@ def main():
         with open(gpcrdb_entry.japan_cds_csv_path, 'w') as f:
             f.write(ensembl.Annotation.header() + '\n')
 
-            for snv in vcf.iterate_vcf(gpcrdb_entry.japan_cds_vcf_path, '54KJPN'):
+            for snv in vcf.iterate_vcf(gpcrdb_entry.japan_cds_vcf_path):
                 anno = ensembl_entry.annotate(snv)
                 f.write(anno.to_csv_line() + '\n')
 
         with open(gpcrdb_entry.global_cds_csv_path, 'w') as f:
             f.write(ensembl.Annotation.header() + '\n')
 
-            for snv in vcf.iterate_vcf(gpcrdb_entry.global_cds_vcf_path, '1KGP'):
+            for snv in vcf.iterate_vcf(gpcrdb_entry.global_cds_vcf_path):
                 anno = ensembl_entry.annotate(snv)
                 f.write(anno.to_csv_line() + '\n')
 

@@ -7,6 +7,7 @@ from config import STANDARD_CODES
 import requests
 import json
 import time
+from typing import List
 
 class GproteinCoupling(enum.Enum):
     Gs = "Gs"
@@ -196,7 +197,7 @@ def normalized_chimpanzee_chromosome(c) -> str:
     raise Exception(f"Unknown chimpanzee chromosome: `{c}`.")
 
 def complementary_sequence(seq: str) -> str:
-    pairs = {"A": "T", "C": "G", "G": "C", "T": "A"}
+    pairs = {"A": "T", "C": "G", "G": "C", "T": "A", "N": "N"}
     return ''.join([pairs[s] for s in seq])
 
 def translate(seq: str, **unusual_codons) -> str:
@@ -210,7 +211,7 @@ def translate(seq: str, **unusual_codons) -> str:
         ret += CODES[triplet]
     return ret
 
-def calc_coding_regions(gene_region: Region, strand: int, transcript: dict):
+def calc_coding_regions(gene_region: Region, strand: int, transcript: dict) -> List[Region]:
     """
     We only have positions where coding regions start and end
                        and where exons          start and end.

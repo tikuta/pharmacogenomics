@@ -53,6 +53,18 @@ BLOCKLIST = (
     'o51v1_human'
 )
 
+CHIMPANZEE_BLOCK_LIST = (
+    # These canonical transcripts did not start with ATG.
+    'ENSPTRG00000045080',
+    'ENSPTRG00000019404', 
+    'ENSPTRG00000019043', 
+    'ENSPTRG00000052258', 
+    'ENSPTRG00000049073', 
+    'ENSPTRG00000009607', 
+    'ENSPTRG00000045634', 
+    'ENSPTRG00000009279',
+)
+
 STANDARD_CODES = {
     'TTT': 'F', 'TCT': 'S', 'TAT': 'Y', 'TGT': 'C',
     'TTC': 'F', 'TCC': 'S', 'TAC': 'Y', 'TGC': 'C',
