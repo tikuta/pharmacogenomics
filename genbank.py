@@ -17,7 +17,7 @@ class GenBankLabel:
 @dataclasses.dataclass
 class GenBank:
     seq: str
-    labels: List[GenBankLabel]
+    labels: List[GenBankLabel] = []
     
     def __post_init__(self):
         self.seq = self.seq.strip()
