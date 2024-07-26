@@ -44,10 +44,11 @@ class MatchedResidue:
         cols = l.split(',')
         source_residue_aa, source_residue_number = (None, None) if cols[0] == '-' else (cols[0][0], int(cols[0][1:]))
         target_residue_aa, target_residue_number = (None, None) if cols[3] == '-' else (cols[3][0], int(cols[3][1:]))
+        gn = None if cols[2] == 'None' else cols[2]
 
         return cls(source_residue_aa, source_residue_number, 
                    target_residue_aa, target_residue_number, 
-                   cols[2], Segment.value_of(cols[1]))
+                   gn, Segment.value_of(cols[1]))
     
     @classmethod
     def header(cls):
@@ -282,7 +283,6 @@ class EnsemblHomologGene:
             json.dump(j, f, indent=2)
 
     def _save_genbank(self, force=False):
-        force = True
         if os.path.exists(self.genbank_path) and force is False:
             return
         

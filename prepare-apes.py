@@ -16,7 +16,7 @@ def main():
 
             gagp = os.path.join("data", "GAGP", "crossmap_sorted.vcf.gz")
             cds_vcf = os.path.join(ensembl_entry.dirpath, f"{chimp_gene_id}_CDS.vcf")
-            vcf.filter_vcf([gagp], ensembl_entry.ordered_coding_regions, cds_vcf)
+            vcf.filter_vcf([gagp], ensembl_entry.ordered_coding_regions, cds_vcf, force=True)
 
             with open(ensembl_entry.annotated_csv_path, 'w') as f:
                 f.write(Annotation.header() + '\n')
