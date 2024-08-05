@@ -15,6 +15,8 @@
 1. Execute `wget.sh` to download files. 
     - 54KJPN (`./data/54KJPN`)
         - https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-54kjpn-20230626-af_snvindelall
+        - Please read conditions of use before downloading files.
+            - https://jmorp.megabank.tohoku.ac.jp/help/conditions-of-use
     - 1KGP (`./data/1KGP`)
         - https://www.ebi.ac.uk/eva/?eva-study=PRJEB30460
     - AlphaMissense (`./data`)
